@@ -1,6 +1,7 @@
 package space.httpjames.kagiassistantmaterial.ui.chat
 
 import android.content.res.Configuration
+import android.view.View
 import android.webkit.WebView
 import android.webkit.WebSettings
 import androidx.compose.foundation.layout.Box
@@ -54,6 +55,10 @@ fun HtmlCard(
             AndroidView(
                 factory = { context ->
                     WebView(context).apply {
+                        isVerticalScrollBarEnabled = false
+                        isHorizontalScrollBarEnabled = false
+                        scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+
                         addJavascriptInterface(
                             HtmlViewerJavaScriptInterface(
                                 expectedMin =  minHeight,
