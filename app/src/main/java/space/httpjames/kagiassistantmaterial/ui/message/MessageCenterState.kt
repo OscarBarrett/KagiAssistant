@@ -2,9 +2,9 @@ package space.httpjames.kagiassistantmaterial.ui.message
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,7 +43,8 @@ fun rememberMessageCenterState(
     setCurrentThreadId: (String?) -> Unit,
 ): MessageCenterState {
     val haptics = LocalHapticFeedback.current
-    val prefs = LocalContext.current.getSharedPreferences("assistant_prefs", Context.MODE_PRIVATE)
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("assistant_prefs", Context.MODE_PRIVATE)
 
     val currentThreadMessages = rememberUpdatedState(threadMessages)
     val currentSetThreadMessages = rememberUpdatedState(setThreadMessages)
@@ -56,7 +57,8 @@ fun rememberMessageCenterState(
             coroutineScope,
             { currentThreadMessages.value },
             { currentSetThreadMessages.value(it) },
-            setCurrentThreadId
+            setCurrentThreadId,
+            context
         )
     }
 }
@@ -68,7 +70,8 @@ class MessageCenterState(
     private val coroutineScope: CoroutineScope,
     private val getThreadMessages: () -> List<AssistantThreadMessage>,
     private val setThreadMessages: (List<AssistantThreadMessage>) -> Unit,
-    private val setCurrentThreadId: (String?) -> Unit
+    private val setCurrentThreadId: (String?) -> Unit,
+    private val context: Context
 ) {
     var text by mutableStateOf("")
         private set
@@ -91,9 +94,34 @@ class MessageCenterState(
     var attachmentUris by mutableStateOf<List<String>>(emptyList())
         private set
 
+    var showAttachmentSizeLimitWarning by mutableStateOf(false)
+        private set
+
     fun addAttachmentUri(uri: String) {
+        val totalSize = attachmentUris.sumOf { getFileSize(Uri.parse(it)) }
+        val newUriSize = getFileSize(Uri.parse(uri))
+
+        if (totalSize + newUriSize > 16 * 1024 * 1024) { // 16 MB
+            showAttachmentSizeLimitWarning = true
+            return
+        }
         attachmentUris = attachmentUris + uri
     }
+
+    fun dismissAttachmentSizeLimitWarning() {
+        showAttachmentSizeLimitWarning = false
+    }
+
+    private fun getFileSize(uri: Uri): Long {
+        return try {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use {
+                it.statSize
+            } ?: 0L
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
 
     fun removeAttachmentUri(uri: String) {
         attachmentUris = attachmentUris - uri

@@ -1,10 +1,13 @@
 package space.httpjames.kagiassistantmaterial.ui.message
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -62,26 +65,15 @@ fun AttachmentBottomSheet(
                     onDismissRequest()
                 }
             )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                FilledIconButton(onClick = { /* Handle camera icon click */ }, modifier = Modifier.size(64.dp)) {
-                    Icon(
-                        imageVector = Icons.Filled.PhotoLibrary,
-                        contentDescription = "Gallery"
-                    )
+            AttachGalleryButton(
+                onSelected = {
+                    for (it in it) {
+                        onAttachment(it.toString())
+                    }
+                    onDismissRequest()
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Gallery")
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                FilledIconButton(onClick = { /* Handle camera icon click */ }, modifier = Modifier.size(64.dp)) {
-                    Icon(
-                        imageVector = Icons.Filled.AttachFile,
-                        contentDescription = "Files"
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Files")
-            }
+            )
+            AttachFileButton(onSelected = { list -> list.forEach { onAttachment(it.toString()) }; onDismissRequest() })
         }
     }
 }
@@ -121,3 +113,45 @@ private fun createTempImageUri(context: Context): Uri =
         "${context.packageName}.provider",
         File(context.cacheDir, "temp_${System.currentTimeMillis()}.webp")
     )
+
+@Composable
+fun AttachGalleryButton(
+    onSelected: (uris: List<Uri>) -> Unit = {}
+) {
+    val pickMultiple = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia()
+    ) { uris: List<Uri> ->
+        onSelected(uris)
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        FilledIconButton(onClick = {
+            pickMultiple.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }, modifier = Modifier.size(64.dp)) {
+            Icon(
+                imageVector = Icons.Filled.PhotoLibrary,
+                contentDescription = "Gallery"
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text("Gallery")
+    }
+}
+
+@Composable
+fun AttachFileButton(onSelected: (List<Uri>) -> Unit) {
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> onSelected(uris) }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        FilledIconButton(
+            onClick = { launcher.launch(arrayOf("*/*")) },
+            modifier = Modifier.size(64.dp)
+        ) {
+            Icon(Icons.Default.AttachFile, contentDescription = "Files")
+        }
+        Spacer(Modifier.height(12.dp))
+        Text("Files", style = MaterialTheme.typography.bodySmall)
+    }
+}

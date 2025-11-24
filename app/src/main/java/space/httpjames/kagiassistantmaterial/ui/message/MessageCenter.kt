@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,12 +13,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -25,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -60,6 +64,21 @@ fun MessageCenter(
     val textFieldShape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
     val haptics = LocalHapticFeedback.current
 
+    val attachmentPreviewsScrollState = rememberScrollState()
+
+    if (state.showAttachmentSizeLimitWarning) {
+        AlertDialog(
+            onDismissRequest = { state.dismissAttachmentSizeLimitWarning() },
+            title = { Text("Attachment Limit Exceeded") },
+            text = { Text("The total size of attachments cannot exceed 16 MB.") },
+            confirmButton = {
+                TextButton(onClick = { state.dismissAttachmentSizeLimitWarning() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = modifier
             .shadow(elevation = 8.dp, shape = textFieldShape)
@@ -72,7 +91,8 @@ fun MessageCenter(
     ) {
         if (state.attachmentUris.isNotEmpty()) {
             Row(
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier.padding(8.dp).horizontalScroll(attachmentPreviewsScrollState),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 state.attachmentUris.forEach { uri ->
                     key(uri) {
