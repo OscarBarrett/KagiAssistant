@@ -2,6 +2,7 @@ package space.httpjames.kagiassistantmaterial.ui.message
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,8 +32,13 @@ import space.httpjames.kagiassistantmaterial.KagiPromptRequest
 import space.httpjames.kagiassistantmaterial.KagiPromptRequestFocus
 import space.httpjames.kagiassistantmaterial.KagiPromptRequestProfile
 import space.httpjames.kagiassistantmaterial.KagiPromptRequestThreads
+import space.httpjames.kagiassistantmaterial.StreamChunk
 import space.httpjames.kagiassistantmaterial.ui.main.parseReferencesHtml
+import java.io.File
 import java.util.UUID
+import android.media.ThumbnailUtils
+import android.util.Size
+import java.io.FileOutputStream
 
 @Composable
 fun rememberMessageCenterState(
@@ -259,92 +265,125 @@ class MessageCenterState(
             val jsonAdapter = moshi.adapter(KagiPromptRequest::class.java)
             val jsonString = jsonAdapter.toJson(requestBody)
 
-            assistantClient.fetchStream(
-                streamId = streamId,
-                url = url,
-                method = "POST",
-                body = jsonString,
-                extraHeaders = mapOf("Content-Type" to "application/json"),
-                onChunk = { chunk ->
-                    println("CHUNK RECEIVED: $chunk")
-                    if (chunk.header == "thread.json") {
-                        // get the id and call the setter
-                        val json = Json.parseToJsonElement(chunk.data)
-                        val obj = json.jsonObject
-                        val id = obj["id"]?.jsonPrimitive?.contentOrNull
-                        setCurrentThreadId(id)
-                    }
-
-                    if (chunk.header == "new_message.json") {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        val json = Json.parseToJsonElement(chunk.data)
-                        val obj = json.jsonObject
-                        val text = obj["reply"]?.jsonPrimitive?.contentOrNull ?: ""
-                        val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: ""
-                        val citations = obj["references_html"]?.jsonPrimitive?.contentOrNull ?: ""
-
-                        println("ADDING NEW ID: $id")
-                        inProgressAssistantMessageId = id
-                        messageId = id
-
-                        // Update local state first
-                        if (localMessages.find { it.id == id } != null) {
-                            var preparedCitations: List<Citation> = emptyList()
-                            if (citations.isNotBlank()) {
-                                preparedCitations = parseReferencesHtml(obj["references_html"]?.jsonPrimitive?.contentOrNull ?: "")
-                            }
-                            localMessages = localMessages.map {
-                                if (it.id == id) it.copy(content = text, citations = preparedCitations) else it
-                            }
-                        } else {
-                            localMessages = localMessages + AssistantThreadMessage(
-                                id = id,
-                                content = text,
-                                role = AssistantThreadMessageRole.ASSISTANT,
-                            )
-                        }
-                        // Then sync to parent
-                        setThreadMessages { localMessages }
-                    }
-
-                    if (chunk.header == "tokens.json") {
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        val json = Json.parseToJsonElement(chunk.data)
-                        val obj = json.jsonObject
-                        val text = obj["text"]?.jsonPrimitive?.contentOrNull ?: ""
-                        val incomingId = obj["id"]?.jsonPrimitive?.contentOrNull ?: ""
-
-                        // Use local state, not getThreadMessages()
-                        localMessages = localMessages.map {
-                            if (it.id == incomingId)
-                                it.copy(content = text)
-                            else
-                                it
-                        }
-                        // Sync to parent
-                        setThreadMessages { localMessages }
-                    }
+            fun onChunk(chunk: StreamChunk) {
+                if (chunk.header == "thread.json") {
+                    // get the id and call the setter
+                    val json = Json.parseToJsonElement(chunk.data)
+                    val obj = json.jsonObject
+                    val id = obj["id"]?.jsonPrimitive?.contentOrNull
+                    setCurrentThreadId(id)
                 }
-            )
 
+                if (chunk.header == "new_message.json") {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    val json = Json.parseToJsonElement(chunk.data)
+                    val obj = json.jsonObject
+                    val text = obj["reply"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val citations = obj["references_html"]?.jsonPrimitive?.contentOrNull ?: ""
+                    
+                    inProgressAssistantMessageId = id
+                    messageId = id
+
+                    // Update local state first
+                    if (localMessages.find { it.id == id } != null) {
+                        var preparedCitations: List<Citation> = emptyList()
+                        if (citations.isNotBlank()) {
+                            preparedCitations = parseReferencesHtml(obj["references_html"]?.jsonPrimitive?.contentOrNull ?: "")
+                        }
+                        localMessages = localMessages.map {
+                            if (it.id == id) it.copy(content = text, citations = preparedCitations) else it
+                        }
+                    } else {
+                        localMessages = localMessages + AssistantThreadMessage(
+                            id = id,
+                            content = text,
+                            role = AssistantThreadMessageRole.ASSISTANT,
+                        )
+                    }
+                    // Then sync to parent
+                    setThreadMessages { localMessages }
+                }
+
+                if (chunk.header == "tokens.json") {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    val json = Json.parseToJsonElement(chunk.data)
+                    val obj = json.jsonObject
+                    val text = obj["text"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val incomingId = obj["id"]?.jsonPrimitive?.contentOrNull ?: ""
+
+                    // Use local state, not getThreadMessages()
+                    localMessages = localMessages.map {
+                        if (it.id == incomingId)
+                            it.copy(content = text)
+                        else
+                            it
+                    }
+                    // Sync to parent
+                    setThreadMessages { localMessages }
+                }
+            }
+            if (attachmentUris.isNotEmpty()) {
+                val files = mutableListOf<File>()
+                val thumbnails = mutableListOf<File?>()
+                val mimeTypes = mutableListOf<String>()
+
+                for (uri in attachmentUris) {
+                    val uri = Uri.parse(uri)
+
+                    // 1. copy content to a temp file
+                    val file = uri.copyToTempFile(context)
+
+                    files += file
+                    thumbnails += if (uri.toString().endsWith(".webp") || uri.toString().endsWith(".jpg")) {
+                        file.to84x84ThumbFile()
+                    } else null
+                    mimeTypes += context.contentResolver.getType(uri) ?: "application/octet-stream"
+                }
+
+                assistantClient.sendMultipartRequest(
+                    streamId = streamId,
+                    url = url,
+                    requestBody = requestBody,
+                    files = files,
+                    thumbnails = thumbnails,
+                    mimeTypes = mimeTypes,
+                    onChunk = { chunk ->  onChunk(chunk) }
+                )
+
+                attachmentUris = emptyList()
+            } else {
+                assistantClient.fetchStream(
+                    streamId = streamId,
+                    url = url,
+                    method = "POST",
+                    body = jsonString,
+                    extraHeaders = mapOf("Content-Type" to "application/json"),
+                    onChunk = { chunk ->  onChunk(chunk) }
+                )
+            }
         }
-
-//        simulation:
-//        coroutineScope.launch {
-//            val finalMessage = "<p>hi</p><h1>Hello, I am an AI assistant. How can I help?</h1>"
-//            for (i in finalMessage.indices) {
-//                println("doing update")
-//                delay(100)
-//                setThreadMessages { current ->
-//                    current.map { msg ->
-//                        if (msg.id == messageId)
-//                            msg.copy(content = finalMessage.take(i + 1))
-//                        else
-//                            msg
-//                    }
-//                }
-//            }
-//        }
     }
 
+}
+
+fun File.to84x84ThumbFile(): File {
+    val thumb = ThumbnailUtils.createImageThumbnail(this, Size(84, 84), null)
+
+    val outFile = createTempFile("thumb_", ".webp")   // /data/local/tmp/…  (world-writable)
+    FileOutputStream(outFile).use { out ->
+        thumb.compress(Bitmap.CompressFormat.WEBP_LOSSY, 100, out)
+    }
+    return outFile
+}
+
+
+private fun Uri.copyToTempFile(context: Context): File {
+    val temp = File.createTempFile("attach_", ".webp", context.cacheDir)
+    context.contentResolver.openInputStream(this).use { ins ->
+        temp.outputStream().use { outs ->
+            ins?.copyTo(outs)
+        }
+    }
+    return temp
 }

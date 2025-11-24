@@ -83,8 +83,6 @@ fun HtmlCard(
                     }
                 },
                 update = { webView ->
-//                    val night = (context.resources.configuration.uiMode and
-//                            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
                     val night = true
                     val cssScheme = if (night) "dark" else "light"
                     val styledHtml = wrapHtmlWithStyles(html, cssScheme)

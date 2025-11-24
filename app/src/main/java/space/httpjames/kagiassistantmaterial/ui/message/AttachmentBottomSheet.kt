@@ -107,12 +107,21 @@ fun AttachCameraButton(
     }
 }
 
-private fun createTempImageUri(context: Context): Uri =
-    FileProvider.getUriForFile(
+private fun createTempImageUri(context: Context): Uri {
+    // 1. create a real file in the cache directory
+    val tempFile = File.createTempFile("temp_", ".webp", context.cacheDir)
+
+    // 2. make it world-readable for the camera / gallery (optional)
+    tempFile.createNewFile()
+
+    // 3. get a content-Uri for that file through your FileProvider
+    return FileProvider.getUriForFile(
         context,
         "${context.packageName}.provider",
-        File(context.cacheDir, "temp_${System.currentTimeMillis()}.webp")
+        tempFile
     )
+}
+
 
 @Composable
 fun AttachGalleryButton(
