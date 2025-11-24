@@ -1,0 +1,63 @@
+package space.httpjames.kagiassistantmaterial.ui.chat
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.*
+import androidx.compose.ui.platform.*
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.*
+import coil.compose.*
+import coil.request.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
+
+@Composable
+fun SourcesButton(
+    domains: List<String>,
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 24.dp,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+    ) {
+        val context = LocalContext.current
+
+        Box(
+            modifier = Modifier
+                .width(iconSize * domains.size - iconSize / 2) // keep overall width tight
+                .height(iconSize)
+        ) {
+            domains.forEachIndexed { index, domain ->
+                val iconUrl = remember(domain) {
+                    "https://icons.duckduckgo.com/ip3/$domain.ico"
+                }
+
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(iconUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(iconSize)
+                        .align(Alignment.CenterStart)
+                        .offset(x = iconSize * index * 0.6f) // overlap by ~40 %
+                        .zIndex((domains.size - index).toFloat()) // right-most on top
+                        .clip(CircleShape)
+                )
+            }
+        }
+
+
+        Text(
+            text = text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}

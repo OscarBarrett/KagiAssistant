@@ -1,0 +1,180 @@
+package space.httpjames.kagiassistantmaterial.ui.message
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.AbstractCoroutine
+import kotlinx.coroutines.CoroutineScope
+import space.httpjames.kagiassistantmaterial.AssistantClient
+import space.httpjames.kagiassistantmaterial.AssistantThreadMessage
+import space.httpjames.kagiassistantmaterial.ui.main.ModelBottomSheet
+
+@Composable
+fun MessageCenter(
+    threadId: String?,
+    assistantClient: AssistantClient,
+    modifier: Modifier = Modifier,
+    threadMessages: List<AssistantThreadMessage>,
+    setThreadMessages: (List<AssistantThreadMessage>) -> Unit,
+    coroutineScope: CoroutineScope,
+    setCurrentThreadId: (String?) -> Unit
+) {
+    val state = rememberMessageCenterState(coroutineScope = coroutineScope, assistantClient = assistantClient, threadMessages = threadMessages, setThreadMessages = setThreadMessages, setCurrentThreadId = setCurrentThreadId)
+
+    val textFieldShape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+    val haptics = LocalHapticFeedback.current
+
+    Column(
+        modifier = modifier
+            .shadow(elevation = 8.dp, shape = textFieldShape)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = textFieldShape
+            )
+            .padding(bottom = 16.dp)
+            .fillMaxWidth()
+    ) {
+        TextField(
+            value = state.text,
+            onValueChange = { state.onTextChanged(it) },
+            placeholder = { Text("Ask Assistant") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false),
+            maxLines = 6,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent
+            )
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp, end = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    state.showAttachmentBottomSheet()
+                }, modifier = Modifier.size(64.dp)) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add attachment")
+                }
+
+                val backgroundColor by animateColorAsState(
+                    if (state.isSearchEnabled) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    label = "Search button background"
+                )
+                val contentColor by animateColorAsState(
+                    if (state.isSearchEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                    label = "Search button content"
+                )
+
+                Row(
+                    modifier = Modifier
+                        .height(40.dp)
+                        .animateContentSize()
+                        .clip(CircleShape)
+                        .background(backgroundColor)
+                        .clickable {
+                            state.toggleSearch()
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Search,
+                        contentDescription = "Toggle internet access",
+                        tint = contentColor
+                    )
+                    if (state.isSearchEnabled) {
+                        Text("Internet", color = contentColor)
+                    }
+                }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (state.profiles.isNotEmpty()) {
+                    OutlinedButton(
+                        onClick = {
+                            state.openModelBottomSheet()
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        },
+                        contentPadding = PaddingValues(horizontal = 16.dp,) // ← less padding
+                    ) {
+                        Text(
+                            text = state.getProfile()?.name?.replace("(preview)", "") ?: "Select a model",
+                        )
+                    }
+                }
+                FilledIconButton(
+                    onClick = {
+                        state.sendMessage(threadId)
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    enabled = state.text.isNotBlank(),
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    Icon(Icons.Filled.Send, contentDescription = "Send message")
+                }
+            }
+        }
+    }
+
+    if (state.showModelBottomSheet) {
+        ModelBottomSheet(
+            assistantClient = assistantClient,
+            coroutineScope = coroutineScope,
+            onDismissRequest = { state.dismissModelBottomSheet() }
+        )
+    }
+
+    if (state.showAttachmentBottomSheet) {
+        AttachmentBottomSheet(onDismissRequest = { state.onDismissAttachmentBottomSheet() })
+    }
+}
