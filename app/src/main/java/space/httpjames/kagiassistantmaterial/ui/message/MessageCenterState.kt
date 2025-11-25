@@ -55,8 +55,8 @@ fun rememberMessageCenterState(
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("assistant_prefs", Context.MODE_PRIVATE)
 
-//    val currentThreadMessages = rememberUpdatedState(threadMessages)
-//    val currentSetThreadMessages = rememberUpdatedState(setThreadMessages)
+    val currentThreadMessages = rememberUpdatedState(threadMessages)
+    val currentSetThreadMessages = rememberUpdatedState(setThreadMessages)
 
     return remember(assistantClient, coroutineScope, prefs) {
         MessageCenterState(
@@ -64,9 +64,8 @@ fun rememberMessageCenterState(
             prefs,
             assistantClient,
             coroutineScope,
-            { threadMessages },
-//            { currentSetThreadMessages.value(it) }, ,
-            setThreadMessages,
+            { currentThreadMessages.value },
+            { currentSetThreadMessages.value(it) },
             setCurrentThreadId,
             context
         )
