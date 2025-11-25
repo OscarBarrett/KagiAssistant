@@ -71,7 +71,7 @@ fun MainScreen(
         }) {
         Scaffold(
             modifier = modifier.fillMaxSize(),
-            topBar = { Header(onMenuClick = { scope.launch { drawerState.open() } }, onNewChatClick = { state.newChat() }) }
+            topBar = { Header(threadTitle = state.currentThreadTitle, onMenuClick = { scope.launch { drawerState.open() } }, onNewChatClick = { state.newChat() }) }
         ) { innerPadding ->
             Column(
                 modifier = Modifier.fillMaxSize()

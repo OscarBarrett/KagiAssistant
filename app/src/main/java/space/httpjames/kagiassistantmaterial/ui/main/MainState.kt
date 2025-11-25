@@ -55,6 +55,8 @@ class MainState(
     var threadMessagesLoading by mutableStateOf(false)
         private set
     var threadMessages by mutableStateOf<List<AssistantThreadMessage>>(emptyList())
+    var currentThreadTitle by mutableStateOf<String?>(null)
+        private set
 
     fun fetchThreads() {
         threadsLoading = true
@@ -68,6 +70,7 @@ class MainState(
 
     fun newChat() {
         currentThreadId = null
+        currentThreadTitle = null
         threadMessages = emptyList()
         coroutineScope.launch {
             drawerState.close()
@@ -76,6 +79,7 @@ class MainState(
 
     fun onThreadSelected(threadId: String) {
         currentThreadId = threadId
+        currentThreadTitle = null
         coroutineScope.launch {
             try {
                 threadMessagesLoading = true
@@ -86,7 +90,11 @@ class MainState(
                     body = """{"focus":{"thread_id":"$threadId"}}""",
                     extraHeaders = mapOf("Content-Type" to "application/json"),
                     onChunk = { chunk ->
-                        // This will now execute on the main thread
+                        if (chunk.header == "thread.json") {
+                            val thread = Json.parseToJsonElement(chunk.data)
+                            currentThreadTitle = thread.jsonObject["title"]?.jsonPrimitive?.content
+                        }
+
                         if (chunk.header == "messages.json") {
                             val messages = Json.parseToJsonElement(chunk.data)
 
