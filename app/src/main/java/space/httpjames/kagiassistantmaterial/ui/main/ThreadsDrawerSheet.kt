@@ -2,6 +2,7 @@ package space.httpjames.kagiassistantmaterial.ui.main
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
@@ -77,8 +79,10 @@ fun ThreadsDrawerSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .fillMaxHeight()
                         .padding(16.dp),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CircularProgressIndicator()
                 }
