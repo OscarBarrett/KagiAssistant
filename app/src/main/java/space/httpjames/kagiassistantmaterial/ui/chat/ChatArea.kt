@@ -35,6 +35,7 @@ fun ChatArea(
     isLoading: Boolean,
     currentThreadId: String?,
     threadMessages: List<AssistantThreadMessage>,
+    onEdit: (String) -> Unit,
 ) {
 
     val scrollState = rememberScrollState()
@@ -62,7 +63,10 @@ fun ChatArea(
                             content = threadMessage.content,
                             role = threadMessage.role,
                             citations = threadMessage.citations,
-                            documents = threadMessage.documents
+                            documents = threadMessage.documents,
+                            onEdit = {
+                                onEdit(threadMessage.id)
+                            }
                         )
                     }
                 }

@@ -50,6 +50,10 @@ fun rememberMessageCenterState(
     threadMessages: List<AssistantThreadMessage> = emptyList(),
     setThreadMessages: (List<AssistantThreadMessage>) -> Unit,
     setCurrentThreadId: (String?) -> Unit,
+    text: String,
+    setText: (String) -> Unit,
+    editingMessageId: String?,
+    setEditingMessageId: (String?) -> Unit,
 ): MessageCenterState {
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
@@ -57,6 +61,14 @@ fun rememberMessageCenterState(
 
     val currentThreadMessages = rememberUpdatedState(threadMessages)
     val currentSetThreadMessages = rememberUpdatedState(setThreadMessages)
+
+    val currentEditingMessageId = rememberUpdatedState(editingMessageId)
+    val currentSetEditingMessageId = rememberUpdatedState(setEditingMessageId)
+
+
+    val currentText = rememberUpdatedState(text)
+    val currentSetText = rememberUpdatedState(setText)
+
 
     return remember(assistantClient, coroutineScope, prefs) {
         MessageCenterState(
@@ -67,7 +79,11 @@ fun rememberMessageCenterState(
             { currentThreadMessages.value },
             { currentSetThreadMessages.value(it) },
             setCurrentThreadId,
-            context
+            context,
+            { currentText.value },
+            { currentSetText.value(it) },
+            { currentEditingMessageId.value },
+            { currentSetEditingMessageId.value(it) },
         )
     }
 }
@@ -80,11 +96,12 @@ class MessageCenterState(
     private val getThreadMessages: () -> List<AssistantThreadMessage>,
     private val setThreadMessages: (List<AssistantThreadMessage>) -> Unit,
     private val setCurrentThreadId: (String?) -> Unit,
-    private val context: Context
+    private val context: Context,
+    private val getText: () -> String,
+    private val setText: (String) -> Unit,
+    private val getEditingMessageId: () -> String?,
+    private val setEditingMessageId: (String?) -> Unit,
 ) {
-    var text by mutableStateOf("")
-        private set
-
     var isSearchEnabled by mutableStateOf(false)
         private set
 
@@ -185,12 +202,8 @@ class MessageCenterState(
         }
     }
 
-    fun updateThreadMessages(transform: (List<AssistantThreadMessage>) -> List<AssistantThreadMessage>) {
-        setThreadMessages(transform(getThreadMessages()))
-    }
-
     fun onTextChanged(newText: String) {
-        text = newText
+        setText(newText)
     }
 
     fun toggleSearch() {
@@ -218,11 +231,17 @@ class MessageCenterState(
         // Local accumulator - the source of truth during streaming
         var localMessages = getThreadMessages()
 
+        val assistantMessages = localMessages.filter { it.role == AssistantThreadMessageRole.USER }
+        val latestAssistantMessageId = assistantMessages.takeLast(1).firstOrNull()?.id
+        val branchIdContext = localMessages.takeLast(1).firstOrNull()?.branchIds ?: emptyList()
+
         // Add user message
         localMessages = localMessages + AssistantThreadMessage(
             id = messageId,
-            content = text,
+            content = getText(),
             role = AssistantThreadMessageRole.USER,
+            citations = emptyList(),
+            branchIds = branchIdContext,
         )
         setThreadMessages(localMessages) // Direct call to the constructor param
 
@@ -230,17 +249,18 @@ class MessageCenterState(
             val streamId = UUID.randomUUID().toString()
             var lastTokenUpdateTime = 0L
 
-            val assistantMessages = localMessages.filter { it.role == AssistantThreadMessageRole.USER }
-            val latestAssistantMessageId = assistantMessages.takeLast(1).firstOrNull()?.id
+            // branch lineage is determined as: last message ID's branch ID
+            val branchId = localMessages.takeLast(1).firstOrNull()?.branchIds?.lastOrNull()
+            println("branch id: $branchId")
 
             val focus = KagiPromptRequestFocus(
                 threadId,
                 latestAssistantMessageId,
-                text,
-                "00000000-0000-4000-0000-000000000000",
+                getText(),
+                branchId,
             )
 
-            text = ""
+            setText("")
 
             val requestBody = KagiPromptRequest(
                 focus,
@@ -251,10 +271,12 @@ class MessageCenterState(
                     getProfile()?.id ?: "",
                     false,
                 ),
-                listOf(KagiPromptRequestThreads(listOf(), true, false))
+                if (!getEditingMessageId().isNullOrBlank()) null else listOf(KagiPromptRequestThreads(listOf(), true, false))
             )
 
-            val url = "https://kagi.com/assistant/prompt"
+            val url = if (!getEditingMessageId().isNullOrBlank()) "https://kagi.com/assistant/message_regenerate" else "https://kagi.com/assistant/prompt"
+
+            setEditingMessageId(null)
 
             val moshi = Moshi.Builder()
                 .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
@@ -262,12 +284,30 @@ class MessageCenterState(
             val jsonAdapter = moshi.adapter(KagiPromptRequest::class.java)
             val jsonString = jsonAdapter.toJson(requestBody)
 
+            println("json string: $jsonString")
+
             fun onChunk(chunk: StreamChunk) {
+                println("NEW CHUNK $chunk")
                 when (chunk.header) {
                     "thread.json" -> {
                         val json = Json.parseToJsonElement(chunk.data)
                         val id = json.jsonObject["id"]?.jsonPrimitive?.contentOrNull
                         if (id != null) setCurrentThreadId(id)
+                    }
+
+                    "location.json" -> {
+                        val json = Json.parseToJsonElement(chunk.data)
+                        val newBranchId = json.jsonObject["branch_id"]?.jsonPrimitive?.contentOrNull
+                        if (newBranchId != null) {
+                            // update the inProgressAssistant message with the new branch ID by appending if it doesn't already have it
+                            localMessages = localMessages.map {
+                                if (it.id == inProgressAssistantMessageId && newBranchId !in it.branchIds) {
+                                    it.copy(branchIds = it.branchIds + newBranchId)
+                                } else {
+                                    it
+                                }
+                            }
+                        }
                     }
 
                     "new_message.json" -> {
@@ -292,11 +332,14 @@ class MessageCenterState(
                                 else it
                             }
                         } else {
+                            // get the last user message and mirror the branch list
+
                             localMessages + AssistantThreadMessage(
                                 id = id,
                                 content = newText,
                                 role = AssistantThreadMessageRole.ASSISTANT,
                                 citations = preparedCitations,
+                                branchIds = localMessages.takeLast(1).firstOrNull()?.branchIds ?: emptyList(),
                             )
                         }
 

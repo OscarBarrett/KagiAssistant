@@ -54,6 +54,7 @@ data class AssistantThreadMessage(
     val role: AssistantThreadMessageRole,
     val citations: List<Citation> = emptyList(),
     val documents: List<AssistantThreadMessageDocument> = emptyList(),
+    val branchIds: List<String> = listOf("00000000-0000-4000-0000-000000000000"),
 )
 
 data class AssistantThreadMessageDocument(

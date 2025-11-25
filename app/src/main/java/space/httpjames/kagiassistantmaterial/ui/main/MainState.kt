@@ -57,6 +57,39 @@ class MainState(
     var threadMessages by mutableStateOf<List<AssistantThreadMessage>>(emptyList())
     var currentThreadTitle by mutableStateOf<String?>(null)
         private set
+    var editingMessageId by mutableStateOf<String?>(null)
+        private set
+
+    var messageCenterText by mutableStateOf<String>("")
+        private set
+
+    fun editMessage(messageId: String) {
+        // find the message in the threadMessages and delete that message + every message after it, but keep all previous ones
+        val index = threadMessages.indexOfFirst { it.id == messageId }
+        if (index != -1) {
+            // if it's the first message in the convo, we'll just clear and set the text to the message
+            val oldContent = threadMessages[index].content
+            if (index == 0) {
+                newChat()
+                messageCenterText = oldContent
+                return
+            }
+
+            editingMessageId = messageId
+            threadMessages = threadMessages.subList(0, index)
+
+            // set the text field to the old content now
+            messageCenterText = oldContent
+        }
+    }
+
+    fun _setEditingMessageId(id: String?) {
+        editingMessageId = id
+    }
+
+    fun _setMessageCenterText(text: String) {
+        messageCenterText = text
+    }
 
     fun fetchThreads() {
         threadsLoading = true
@@ -69,6 +102,7 @@ class MainState(
     }
 
     fun newChat() {
+        editingMessageId = null
         currentThreadId = null
         currentThreadTitle = null
         threadMessages = emptyList()
@@ -125,12 +159,16 @@ class MainState(
                                     )
                                 }
 
+                                val branchList = obj["branch_list"]?.jsonArray
+                                val branchListStrings = branchList?.map { it.jsonPrimitive.content } ?: emptyList()
+
                                 threadMessages += AssistantThreadMessage(
                                     obj["id"]?.jsonPrimitive?.contentOrNull ?: "",
                                     obj["prompt"]?.jsonPrimitive?.contentOrNull ?: "",
                                     AssistantThreadMessageRole.USER,
                                     emptyList(),
                                     parsedDocuments,
+                                    branchListStrings,
                                 )
                                 val citations = parseReferencesHtml(obj["references_html"]?.jsonPrimitive?.contentOrNull ?: "")
                                 println(citations)
@@ -138,7 +176,9 @@ class MainState(
                                     (obj["id"]?.jsonPrimitive?.contentOrNull ?: "") + ".reply",
                                     obj["reply"]?.jsonPrimitive?.contentOrNull ?: "",
                                     AssistantThreadMessageRole.ASSISTANT,
-                                    citations
+                                    citations,
+                                    emptyList(),
+                                    branchListStrings,
                                 )
                             }
 

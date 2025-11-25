@@ -57,9 +57,13 @@ fun MessageCenter(
     threadMessages: List<AssistantThreadMessage>,
     setThreadMessages: (List<AssistantThreadMessage>) -> Unit,
     coroutineScope: CoroutineScope,
-    setCurrentThreadId: (String?) -> Unit
+    setCurrentThreadId: (String?) -> Unit,
+    editingMessageId: String? = null,
+    text: String,
+    setText: (String) -> Unit,
+    setEditingMessageId: (String?) -> Unit,
 ) {
-    val state = rememberMessageCenterState(coroutineScope = coroutineScope, assistantClient = assistantClient, threadMessages = threadMessages, setThreadMessages = setThreadMessages, setCurrentThreadId = setCurrentThreadId)
+    val state = rememberMessageCenterState(editingMessageId = editingMessageId, setEditingMessageId = setEditingMessageId, text = text, setText = setText, coroutineScope = coroutineScope, assistantClient = assistantClient, threadMessages = threadMessages, setThreadMessages = setThreadMessages, setCurrentThreadId = setCurrentThreadId)
 
     val textFieldShape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
     val haptics = LocalHapticFeedback.current
@@ -102,7 +106,7 @@ fun MessageCenter(
             }
         }
         TextField(
-            value = state.text,
+            value = text,
             onValueChange = { state.onTextChanged(it) },
             placeholder = { Text("Ask Assistant") },
             modifier = Modifier
@@ -191,7 +195,7 @@ fun MessageCenter(
                         state.sendMessage(threadId)
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
-                    enabled = state.text.isNotBlank(),
+                    enabled = text.isNotBlank(),
                     modifier = Modifier.size(56.dp),
                 ) {
                     Icon(Icons.Filled.Send, contentDescription = "Send message")

@@ -84,6 +84,9 @@ fun MainScreen(
                         .weight(1f),
                     isLoading = state.threadMessagesLoading,
                     currentThreadId = state.currentThreadId,
+                    onEdit = { it ->
+                        state.editMessage(it)
+                    }
                 )
                 MessageCenter(
                     threadId = state.currentThreadId,
@@ -92,7 +95,13 @@ fun MainScreen(
                     threadMessages = state.threadMessages,
                     setThreadMessages = { state.threadMessages = it },
                     coroutineScope = state.coroutineScope,
-                    setCurrentThreadId = { it -> state._setCurrentThreadId(it) }
+                    setCurrentThreadId = { it -> state._setCurrentThreadId(it) },
+
+                    text = state.messageCenterText,
+                    setText = { state._setMessageCenterText(it) },
+
+                    editingMessageId = state.editingMessageId,
+                    setEditingMessageId = { state._setEditingMessageId(it) }
                 )
             }
         }
