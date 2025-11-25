@@ -2,7 +2,9 @@ package space.httpjames.kagiassistantmaterial.ui.main
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
@@ -12,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.launch
 import space.httpjames.kagiassistantmaterial.AssistantClient
 import space.httpjames.kagiassistantmaterial.ui.chat.ChatArea
@@ -27,13 +30,22 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
 
+    // Track keyboard visibility
+    val density = LocalDensity.current
+    val imeVisible = WindowInsets.ime.getBottom(density) > 0
+
     BackHandler(enabled = drawerState.isOpen) {
         scope.launch {
             drawerState.close()
         }
     }
 
-    BackHandler(enabled = !drawerState.isOpen && state.currentThreadId != null) {
+    // Only handle back for "clear chat" when keyboard is NOT visible
+    BackHandler(
+        enabled = !drawerState.isOpen
+                && state.currentThreadId != null
+                && !imeVisible  // <-- Add this condition
+    ) {
         state.newChat()
     }
 
