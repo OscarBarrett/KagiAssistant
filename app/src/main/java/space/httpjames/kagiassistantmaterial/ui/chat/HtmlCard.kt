@@ -117,17 +117,11 @@ private fun wrapHtmlWithStyles(html: String, cssScheme: String): String {
         <html>
         <head>
             <meta charset="utf-8">
-    <script>
-        // Force the page to believe it is in light/dark mode
-        const light = $cssScheme === 'light';
-        if (light) {
-            document.documentElement.classList.add('light');
-            document.documentElement.classList.remove('dark');
-        } else {
-            document.documentElement.classList.add('dark');
-            document.documentElement.classList.remove('light');
-        }
-    </script>
+            <script>
+                const light = '$cssScheme' === 'light';
+                document.documentElement.classList.toggle('light', light);
+                document.documentElement.classList.toggle('dark', !light);
+            </script>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
                 * {
@@ -140,7 +134,6 @@ private fun wrapHtmlWithStyles(html: String, cssScheme: String): String {
                     --main-bg-color: #17181b;
                     --header-bg: #17181bcc;
                     --main-text-color: #E2E2E9;
-
                     --divider-color: #27292e;
                     --modal-bg-color: #27292e;
                     --modal-divider-color: #3a3d44;
@@ -162,30 +155,34 @@ private fun wrapHtmlWithStyles(html: String, cssScheme: String): String {
                 }
 
                 html.light {
-                    :root {
-                        --main-bg-color: #f9f9f9;
-                        --header-bg: #f9f9f9cc;
-                        --main-text-color: black;
-                        --divider-color: #e5e7eb;
-                        --modal-bg-color: #e5e7eb;
-                        --modal-divider-color: #d1d5db;
+                    --main-bg-color: #f9f9f9;
+                    --header-bg: #f9f9f9cc;
+                    --main-text-color: black;
+                    --divider-color: #e5e7eb;
+                    --modal-bg-color: #e5e7eb;
+                    --modal-divider-color: #d1d5db;
 
-                        --skeleton-1: #e5e7eb;
-                        --skeleton-2: #d1d5db;
-                        --skeleton-3: #e5e7eb;
+                    --skeleton-1: #e5e7eb;
+                    --skeleton-2: #d1d5db;
+                    --skeleton-3: #e5e7eb;
 
-                        --outbound-message-bg-color: #e9eef6;
+                    --outbound-message-bg-color: #e9eef6;
 
-                        --citation-bg-color: #f3f4f6;
-                        --citation-border-color: #d1d5db;
-                        --citation-text-color: #1e293b;
+                    --citation-bg-color: #f3f4f6;
+                    --citation-border-color: #d1d5db;
+                    --citation-text-color: #1e293b;
 
-                        --summary-text-color: #1e293b;
+                    --summary-text-color: #1e293b;
 
-                        --context-menu-bg-color: #fdfeff;
+                    --context-menu-bg-color: #fdfeff;
 
-                        --document-bg-color: #eaecee;
-                    }
+                    --document-bg-color: #eaecee;
+                    
+                    /* Light‑theme greys */
+                    --gray-200: #e5e7eb;
+                    /* very light gray – used as the shimmer highlight in light mode */
+                    --gray-900: #414141;
+                    /* dark gray – fallback for dark mode if the theme selector fails */
                 }
 
                 body {
@@ -438,14 +435,6 @@ private fun wrapHtmlWithStyles(html: String, cssScheme: String): String {
 
                 summary::marker {
                     display: none;
-                }
-
-                :root {
-                    /* Light‑theme greys */
-                    --gray-200: #e5e7eb;
-                    /* very light gray – used as the shimmer highlight in light mode */
-                    --gray-900: #414141;
-                    /* dark gray – fallback for dark mode if the theme selector fails */
                 }
 
                 /* --------------------------------------------------------------
