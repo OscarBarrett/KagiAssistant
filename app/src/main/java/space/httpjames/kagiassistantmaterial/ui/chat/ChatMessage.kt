@@ -192,40 +192,44 @@ fun ChatMessage(
                                             )
                                         }
 
-                                        IconButton(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    clipboard.setClipEntry(
-                                                        ClipEntry(
-                                                            ClipData.newPlainText(
-                                                                "message",
-                                                                markdownContent
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            IconButton(
+                                                onClick = {
+                                                    coroutineScope.launch {
+                                                        clipboard.setClipEntry(
+                                                            ClipEntry(
+                                                                ClipData.newPlainText(
+                                                                    "message",
+                                                                    markdownContent
+                                                                )
                                                             )
                                                         )
-                                                    )
-                                                }
-                                            },
-                                            colors = IconButtonDefaults.iconButtonColors(
-                                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.ContentCopy,
-                                                contentDescription = "Copy message"
-                                            )
-                                        }
-                                        IconButton(
-                                            onClick = {
-                                                showMetadataModal = true
-                                            },
-                                            colors = IconButtonDefaults.iconButtonColors(
-                                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Info,
-                                                contentDescription = "Show message metadata"
-                                            )
+                                                    }
+                                                },
+                                                colors = IconButtonDefaults.iconButtonColors(
+                                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.ContentCopy,
+                                                    contentDescription = "Copy message"
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    showMetadataModal = true
+                                                },
+                                                colors = IconButtonDefaults.iconButtonColors(
+                                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Info,
+                                                    contentDescription = "Show message metadata"
+                                                )
+                                            }
                                         }
                                     }
                                 }

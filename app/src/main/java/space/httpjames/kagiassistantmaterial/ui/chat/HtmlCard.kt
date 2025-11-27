@@ -100,7 +100,6 @@ fun HtmlCard(
                 update = { webView ->
                     val lastHtml = webView.tag as? String
                     if (lastHtml != html) {
-                        heightState = minHeight
                         val night = (context.resources.configuration.uiMode and
                                 Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
                         val cssScheme = if (night) "dark" else "light"
