@@ -27,6 +27,10 @@
                 android:name="android.voice_interaction"
                 android:resource="@xml/voice_interaction" />
         </service>
+        <service
+            android:name=".KagiAssistantIService"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:process=":session"></service>
 
         <activity
             android:name=".MainActivity"
@@ -35,6 +39,9 @@
             android:theme="@style/Theme.KagiAssistant">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+                <action android:name="android.intent.action.ASSIST" />
+
+                <category android:name="android.intent.category.DEFAULT" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>

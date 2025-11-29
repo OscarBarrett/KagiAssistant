@@ -1,7 +1,10 @@
 package space.httpjames.kagiassistantmaterial
 
+import android.content.Context
 import android.os.Bundle
 import android.service.voice.VoiceInteractionService
+import android.service.voice.VoiceInteractionSession
+import android.service.voice.VoiceInteractionSessionService
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -77,3 +80,10 @@ class MainActivity : ComponentActivity() {
 }
 
 class KagiAssistantService : VoiceInteractionService()
+class KagiAssistantSession(context: Context) : VoiceInteractionSession(context)
+
+class KagiAssistantIService : VoiceInteractionSessionService() {
+    override fun onNewSession(p0: Bundle): VoiceInteractionSession {
+        return KagiAssistantSession(this)
+    }
+}
