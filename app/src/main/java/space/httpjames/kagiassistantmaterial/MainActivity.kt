@@ -1,6 +1,7 @@
 package space.httpjames.kagiassistantmaterial
 
 import android.os.Bundle
+import android.service.voice.VoiceInteractionService
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -74,3 +75,5 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+class KagiAssistantService : VoiceInteractionService()

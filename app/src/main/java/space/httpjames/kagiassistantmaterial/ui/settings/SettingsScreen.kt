@@ -1,5 +1,10 @@
 package space.httpjames.kagiassistantmaterial.ui.settings
 
+import android.content.ComponentName
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.provider.Settings
+import android.service.voice.VoiceInteractionService
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,6 +52,7 @@ fun SettingsScreen(
     val state = rememberSettingsScreenState(assistantClient)
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         state.runInit()
@@ -99,12 +107,39 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 SettingsItem(
+                    icon = Icons.Default.Stars,
+                    title = "Set default assistant",
+                    subtitle = "Open Kagi Assistant on device invocation",
+                    pos = SettingsItemPosition.TOP,
+                    iconBackgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    onClick = {
+                        val intent = Intent(VoiceInteractionService.SERVICE_INTERFACE)
+                        val pm = context.packageManager
+                        val ri = pm.queryIntentServices(intent, PackageManager.GET_META_DATA)
+                            .firstOrNull { it.serviceInfo.packageName == context.packageName }
+
+                        if (ri != null) {
+                            val serviceName = ComponentName(context, ri.serviceInfo.name)
+                            val setDefaultIntent = Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
+                                .putExtra(
+                                    ":settings:fragment_args_key",
+                                    serviceName.flattenToString()
+                                )
+                                .putExtra(":settings:show_fragment_args_key", true)
+                            context.startActivity(setDefaultIntent)
+                        }
+
+                    }
+                )
+                SettingsItem(
                     icon = Icons.Default.Keyboard,
-                    title = "Open keyboard automatically",
+                    title = "Open Keyboard automatically",
                     subtitle = "Focus the message bar on app open",
-                    pos = SettingsItemPosition.SINGLE,
+                    pos = SettingsItemPosition.BOTTOM,
                     iconBackgroundColor = MaterialTheme.colorScheme.primaryContainer,
                     iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                     rightSide = {
