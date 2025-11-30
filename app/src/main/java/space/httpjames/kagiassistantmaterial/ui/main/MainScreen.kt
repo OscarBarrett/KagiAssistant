@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import space.httpjames.kagiassistantmaterial.AssistantClient
+import space.httpjames.kagiassistantmaterial.Screens
 import space.httpjames.kagiassistantmaterial.ui.chat.ChatArea
 import space.httpjames.kagiassistantmaterial.ui.message.MessageCenter
 import space.httpjames.kagiassistantmaterial.ui.shared.Header
@@ -76,7 +77,7 @@ fun MainScreen(
                 isLoading = state.threadsLoading,
                 onSettingsClick = {
                     scope.launch {
-                        navController.navigate("settings")
+                        navController.navigate(Screens.SETTINGS.route)
                         drawerState.close()
                     }
                 }

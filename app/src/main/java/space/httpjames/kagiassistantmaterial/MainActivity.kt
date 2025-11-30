@@ -19,6 +19,12 @@ import space.httpjames.kagiassistantmaterial.ui.main.MainScreen
 import space.httpjames.kagiassistantmaterial.ui.settings.SettingsScreen
 import space.httpjames.kagiassistantmaterial.ui.theme.KagiAssistantTheme
 
+enum class Screens(val route: String) {
+    LANDING("landing"),
+    MAIN("main"),
+    SETTINGS("settings")
+}
+
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,22 +57,22 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(
                     navController = navController,
-                    startDestination = if (sessionToken != null) "main" else "landing"
+                    startDestination = if (sessionToken != null) Screens.MAIN.route else Screens.LANDING.route
                 ) {
-                    composable("landing") {
+                    composable(Screens.LANDING.route) {
                         LandingScreen(onLoginSuccess = {
                             prefs.edit().putString("session_token", it).apply()
                             sessionToken = it
-                            navController.navigate("main") {
-                                popUpTo("landing") { inclusive = true }
+                            navController.navigate(Screens.MAIN.route) {
+                                popUpTo(Screens.LANDING.route) { inclusive = true }
                             }
                         })
                     }
-                    composable("main") {
+                    composable(Screens.MAIN.route) {
                         val assistantClient = AssistantClient(sessionToken!!)
                         MainScreen(assistantClient = assistantClient, navController = navController)
                     }
-                    composable("settings") {
+                    composable(Screens.SETTINGS.route) {
                         val assistantClient = AssistantClient(sessionToken!!)
                         SettingsScreen(
                             assistantClient = assistantClient,

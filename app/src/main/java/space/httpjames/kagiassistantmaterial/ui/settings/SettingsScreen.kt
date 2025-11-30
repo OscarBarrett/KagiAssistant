@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import space.httpjames.kagiassistantmaterial.AssistantClient
+import space.httpjames.kagiassistantmaterial.Screens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -208,7 +209,7 @@ fun SettingsScreen(
                             val loggedOut = assistantClient.deleteSession()
                             if (loggedOut) {
                                 state.clearAllPrefs()
-                                navController.navigate("landing")
+                                navController.navigate(Screens.LANDING.route)
                             }
                         }
                     }

@@ -1,13 +1,10 @@
 package space.httpjames.kagiassistantmaterial.ui.landing
 
-import android.content.Context
-import android.content.SharedPreferences
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import space.httpjames.kagiassistantmaterial.AssistantClient
@@ -17,14 +14,13 @@ import space.httpjames.kagiassistantmaterial.QrRemoteSessionDetails
 fun rememberLandingScreenState(
     assistantClient: AssistantClient = AssistantClient("null"),
 ): LandingScreenState {
-    val prefs = LocalContext.current.getSharedPreferences("assistant_prefs", Context.MODE_PRIVATE)
-    return remember(prefs, assistantClient) {
-        LandingScreenState(prefs, assistantClient)
+
+    return remember(assistantClient) {
+        LandingScreenState(assistantClient)
     }
 }
 
 class LandingScreenState(
-    private val prefs: SharedPreferences,
     private val assistantClient: AssistantClient,
 ) {
     var authSessionDetails by mutableStateOf<QrRemoteSessionDetails?>(null)
