@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Assistant
+import androidx.compose.material.icons.filled.HomeMini
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PhoneInTalk
@@ -169,6 +170,19 @@ fun SettingsScreen(
                             context.startActivity(setDefaultIntent)
                         }
 
+                    }
+                )
+                SettingsItem(
+                    icon = Icons.Default.HomeMini,
+                    title = "Use mini overlay",
+                    subtitle = "Show assist overlay instead of app",
+                    pos = SettingsItemPosition.MIDDLE,
+                    iconBackgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    rightSide = {
+                        Switch(checked = state.useMiniOverlay, onCheckedChange = {
+                            state.toggleUseMiniOverlay()
+                        })
                     }
                 )
                 SettingsItem(

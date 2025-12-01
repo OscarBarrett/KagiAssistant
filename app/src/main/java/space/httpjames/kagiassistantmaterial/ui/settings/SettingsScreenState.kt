@@ -40,7 +40,7 @@ class SettingsScreenState(
             true
         )
     )
-    
+
     var openKeyboardAutomatically by mutableStateOf(
         prefs.getBoolean(
             "open_keyboard_automatically",
@@ -60,6 +60,18 @@ class SettingsScreenState(
         private set
     var selectedAssistantModelName by mutableStateOf<String?>(null)
         private set
+    var useMiniOverlay by mutableStateOf<Boolean>(
+        prefs.getBoolean(
+            "use_mini_overlay",
+            true
+        )
+    )
+        private set
+
+    fun toggleUseMiniOverlay() {
+        useMiniOverlay = !useMiniOverlay
+        prefs.edit().putBoolean("use_mini_overlay", useMiniOverlay).apply()
+    }
 
 
     fun showAssistantModelChooser() {

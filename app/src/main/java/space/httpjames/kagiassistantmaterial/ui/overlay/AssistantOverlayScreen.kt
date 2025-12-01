@@ -1,5 +1,6 @@
 package space.httpjames.kagiassistantmaterial.ui.overlay
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.compose.animation.AnimatedVisibility
@@ -100,31 +101,12 @@ fun AssistantOverlayScreen(
             repeatMode = RepeatMode.Reverse
         )
     )
-
-    var visible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        visible = true
-    }
-
     val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("assistant_prefs", Context.MODE_PRIVATE) }
+    var visible by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val state = rememberAssistantOverlayState(assistantClient, context, coroutineScope)
-
-    var lines by rememberSaveable { mutableIntStateOf(1) }
-
     val localFocusContext = LocalFocusManager.current
-
-    DisposableEffect(Unit) { onDispose { state.destroy() } }
-
-    LaunchedEffect(Unit) {
-        reinvokeFlow.collect { args ->
-            state.restartFlow()
-            localFocusContext.clearFocus()
-        }
-    }
-
-    var dragDistance by remember { mutableStateOf(0f) }
 
     fun continueInApp() {
         coroutineScope.launch {
@@ -142,6 +124,30 @@ fun AssistantOverlayScreen(
             onDismiss()
         }
     }
+
+    LaunchedEffect(Unit) {
+        val useMiniOverlay = prefs.getBoolean("use_mini_overlay", true)
+        if (useMiniOverlay) {
+            visible = true
+        } else {
+            continueInApp()
+        }
+    }
+
+
+    var lines by rememberSaveable { mutableIntStateOf(1) }
+
+
+    DisposableEffect(Unit) { onDispose { state.destroy() } }
+
+    LaunchedEffect(Unit) {
+        reinvokeFlow.collect { args ->
+            state.restartFlow()
+            localFocusContext.clearFocus()
+        }
+    }
+
+    var dragDistance by remember { mutableStateOf(0f) }
 
     AnimatedVisibility(
         visible = visible,

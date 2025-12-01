@@ -244,14 +244,16 @@ class AssistantOverlayState(
 
     init {
         speechRecognizer.setRecognitionListener(listener)
-        if (permissionOk) speechRecognizer.startListening(intent)
-        coroutineScope.launch {
-            try {
-                profiles = assistantClient.getProfiles()
-            } catch (e: Exception) {
-                e.printStackTrace()
+        val useMiniOverlay = prefs.getBoolean("use_mini_overlay", true)
+        if (useMiniOverlay) {
+            if (permissionOk) speechRecognizer.startListening(intent)
+            coroutineScope.launch {
+                try {
+                    profiles = assistantClient.getProfiles()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
-
         }
     }
 
