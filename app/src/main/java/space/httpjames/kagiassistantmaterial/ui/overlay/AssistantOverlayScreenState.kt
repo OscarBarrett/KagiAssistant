@@ -183,7 +183,7 @@ class AssistantOverlayState(
             val requestBody = KagiPromptRequest(
                 focus,
                 KagiPromptRequestProfile(
-                    profile.key,
+                    profile.id,
                     false,
                     null,
                     profile.model,
