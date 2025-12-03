@@ -160,9 +160,10 @@ fun AssistantOverlayScreen(
         }
     }
 
+    val scrollState = rememberScrollState()
+
     var dragDistance by remember { mutableStateOf(0f) }
 
-    val scrollState = rememberScrollState()
 
     AnimatedVisibility(
         visible = visible,
@@ -214,23 +215,6 @@ fun AssistantOverlayScreen(
                             indication = null,
                             onClick = {}
                         )
-                        .pointerInput(Unit) {
-                            detectVerticalDragGestures(
-                                onVerticalDrag = { _, dragAmount ->
-                                    dragDistance += dragAmount
-                                },
-                                onDragEnd = {
-                                    if (dragDistance < -80f) {
-                                        continueInApp()
-                                    }
-                                    dragDistance = 0f
-                                },
-                                onDragCancel = {
-                                    dragDistance = 0f
-                                }
-                            )
-                        }
-
                         .systemBarsPadding(),
                     color = MaterialTheme.colorScheme.background,
                     shape = RoundedCornerShape(16.dp)
@@ -239,7 +223,24 @@ fun AssistantOverlayScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 8.dp),
+                                .padding(top = 8.dp)
+                                .pointerInput(Unit) {
+                                    detectVerticalDragGestures(
+                                        onVerticalDrag = { _, dragAmount ->
+                                            dragDistance += dragAmount
+                                        },
+                                        onDragEnd = {
+                                            if (dragDistance < -80f) {
+                                                continueInApp()
+                                            }
+                                            dragDistance = 0f
+                                        },
+                                        onDragCancel = {
+                                            dragDistance = 0f
+                                        }
+                                    )
+                                },
+
                             horizontalArrangement = Arrangement.Center
                         ) {
                             HorizontalDivider(
@@ -252,13 +253,16 @@ fun AssistantOverlayScreen(
                             )
                         }
 
-                        Box(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 700.dp)
+                        ) {
                             Column(
                                 modifier = Modifier
                                     .verticalScroll(scrollState)
                                     .padding(horizontal = 12.dp, vertical = 12.dp)
-                                    .fillMaxWidth()
-                                    .heightIn(max = 700.dp),
+                                    .fillMaxWidth(),
                             ) {
                                 if (state.assistantMessage.isNotEmpty() || state.isWaitingForMessageFirstToken || !state.assistantDone) {
                                     Column(

@@ -4,6 +4,11 @@
     box-sizing: border-box;
 }
 
+html, body {
+    overflow: hidden;
+    touch-action: pan-y;
+}
+
 :root {
     --main-bg-color: #17181b;
     --header-bg: #17181bcc;
