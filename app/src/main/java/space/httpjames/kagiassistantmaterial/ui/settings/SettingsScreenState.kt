@@ -85,6 +85,8 @@ class SettingsScreenState(
     fun saveAssistantModel(key: String) {
         prefs.edit().putString("assistant_model", key).apply()
         selectedAssistantModel = key
+        selectedAssistantModelName =
+            profiles.firstOrNull { it.key == selectedAssistantModel }?.name
     }
 
     fun toggleOpenKeyboardAutomatically() {
