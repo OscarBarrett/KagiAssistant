@@ -2,7 +2,6 @@ package space.httpjames.kagiassistantmaterial.ui.chat
 
 import android.content.Context
 import android.content.res.Configuration
-import android.view.MotionEvent
 import android.view.View
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -65,15 +64,6 @@ fun HtmlCard(
             AndroidView(
                 factory = { context ->
                     object : WebView(context) {
-                        override fun onTouchEvent(event: MotionEvent?): Boolean {
-                            // Never consume touch events - let parent scroll handle them
-                            return false
-                        }
-
-                        override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
-                            // Never intercept children's touch events either
-                            return false
-                        }
                     }.apply {
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
