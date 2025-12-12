@@ -114,8 +114,8 @@ fun HtmlCard(
                         val cssScheme = if (night) "dark" else "light"
 
                         val styledHtml = wrapHtmlWithStyles(context, html, cssScheme)
-                        loadDataWithBaseURL(null, styledHtml, "text/html", "utf-8", null)
                         tag = html
+                        loadDataWithBaseURL(null, styledHtml, "text/html", "utf-8", null)
                     }
                 },
                 update = { webView ->
