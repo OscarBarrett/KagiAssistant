@@ -16,34 +16,39 @@ import space.httpjames.kagiassistantmaterial.R
 import java.io.File
 
 @Composable
-fun DynamicAssistantIcon(modifier: Modifier = Modifier) {
+fun DynamicAssistantIcon(
+    contentDescription: String = "Assistant icon",
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
-    val prefs = remember(context) {
+    val companionKey = remember(context) {
         context.getSharedPreferences("assistant_prefs", Context.MODE_PRIVATE)
+            .getString("companion", null)
+    }
+    val svgPath = remember(companionKey) {
+        companionKey?.let { key ->
+            File(context.cacheDir, "companion_$key.svg")
+                .takeIf { it.exists() }
+                ?.absolutePath
+        }
     }
 
-    // if we have a companion set, show the companion icon
-    if (prefs.getString("companion", null) != null) {
-        // read the file from the cache dir
-        val svgFile = File(context.cacheDir, "companion_${prefs.getString("companion", null)}.svg")
-        if (svgFile.exists()) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(svgFile)
-                    .decoderFactory(SvgDecoder.Factory())
-                    .scale(Scale.FIT)
-                    .build(),
-                contentDescription = null,
-                modifier = modifier
-            )
-        }
+    if (svgPath != null) {
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(File(svgPath))
+                .decoderFactory(SvgDecoder.Factory())
+                .scale(Scale.FIT)
+                .build(),
+            contentDescription = contentDescription,
+            modifier = modifier
+        )
     } else {
         Icon(
             painter = painterResource(R.drawable.fetch_ball_icon),
-            contentDescription = null,
+            contentDescription = contentDescription,
             tint = Color.Unspecified,
             modifier = modifier
         )
     }
-
 }
