@@ -186,7 +186,9 @@ fun MainScreen(
                     editingMessageId = state.editingMessageId,
                     setEditingMessageId = { state._setEditingMessageId(it) },
 
-                    setCurrentThreadTitle = { state._setCurrentThreadTitle(it) }
+                    setCurrentThreadTitle = { state._setCurrentThreadTitle(it) },
+
+                    isTemporaryChat = state.isTemporaryChat
                 )
             }
         }

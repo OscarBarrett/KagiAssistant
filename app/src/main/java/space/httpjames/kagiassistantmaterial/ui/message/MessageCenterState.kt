@@ -57,6 +57,7 @@ fun rememberMessageCenterState(
     editingMessageId: String?,
     setEditingMessageId: (String?) -> Unit,
     setCurrentThreadTitle: (String) -> Unit,
+    isTemporaryChat: Boolean,
 ): MessageCenterState {
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
@@ -73,6 +74,8 @@ fun rememberMessageCenterState(
 
     val currentSetThreadTitle = rememberUpdatedState(setCurrentThreadTitle)
 
+    val currentIsTemporaryChat = rememberUpdatedState(isTemporaryChat)
+
     return remember(assistantClient, coroutineScope, prefs) {
         MessageCenterState(
             haptics,
@@ -88,6 +91,7 @@ fun rememberMessageCenterState(
             { currentEditingMessageId.value },
             { currentSetEditingMessageId.value(it) },
             { currentSetThreadTitle.value(it) },
+            { currentIsTemporaryChat.value }
         )
     }
 }
@@ -106,6 +110,7 @@ class MessageCenterState(
     private val getEditingMessageId: () -> String?,
     private val setEditingMessageId: (String?) -> Unit,
     private val setCurrentThreadTitle: (String) -> Unit,
+    private val getIsTemporaryChat: () -> Boolean
 ) {
     var isSearchEnabled by mutableStateOf(false)
         private set
@@ -273,7 +278,11 @@ class MessageCenterState(
                     false,
                 ),
                 if (!getEditingMessageId().isNullOrBlank()) null else listOf(
-                    KagiPromptRequestThreads(listOf(), true, false)
+                    KagiPromptRequestThreads(
+                        listOf(),
+                        saved = !getIsTemporaryChat(),
+                        shared = false
+                    )
                 )
             )
 

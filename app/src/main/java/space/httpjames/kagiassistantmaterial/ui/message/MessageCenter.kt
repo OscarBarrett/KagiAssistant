@@ -67,7 +67,8 @@ fun MessageCenter(
     text: String,
     setText: (String) -> Unit,
     setEditingMessageId: (String?) -> Unit,
-    setCurrentThreadTitle: (String) -> Unit
+    setCurrentThreadTitle: (String) -> Unit,
+    isTemporaryChat: Boolean,
 ) {
     val state = rememberMessageCenterState(
         setCurrentThreadTitle = setCurrentThreadTitle,
@@ -79,7 +80,8 @@ fun MessageCenter(
         assistantClient = assistantClient,
         threadMessages = threadMessages,
         setThreadMessages = setThreadMessages,
-        setCurrentThreadId = setCurrentThreadId
+        setCurrentThreadId = setCurrentThreadId,
+        isTemporaryChat = isTemporaryChat
     )
 
     val textFieldShape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
@@ -90,7 +92,7 @@ fun MessageCenter(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    
+
     DisposableEffect(lifecycle) {
         val observer = object : DefaultLifecycleObserver {
             override fun onResume(owner: LifecycleOwner) {
