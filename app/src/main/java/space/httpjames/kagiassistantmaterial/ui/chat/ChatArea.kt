@@ -52,7 +52,6 @@ fun ChatArea(
     onRetryClick: () -> Unit,
     isTemporaryChat: Boolean,
 ) {
-
     val scrollState = rememberScrollState()
     var pendingMeasurements by remember { mutableIntStateOf(0) }
     var measurementComplete by remember { mutableStateOf(false) }
@@ -60,11 +59,13 @@ fun ChatArea(
     val coroutineScope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     var showButton by remember { mutableStateOf(false) }
+
     LaunchedEffect(scrollState.isScrollInProgress, scrollState.value, scrollState.maxValue) {
         showButton = !scrollState.isScrollInProgress &&
                 scrollState.maxValue > 0 &&
                 scrollState.value < scrollState.maxValue
     }
+
 
     Crossfade(
         targetState = threadMessages.isEmpty(),

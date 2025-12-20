@@ -147,7 +147,7 @@ data class KagiCompanion(
 )
 
 class AssistantClient(
-    sessionToken: String,
+    private val sessionToken: String,
 ) {
     private val baseHeaders = Headers.Builder()
         .add("origin", "https://kagi.com")
@@ -168,6 +168,10 @@ class AssistantClient(
 
     private val moshi = Moshi.Builder().build()
     private val promptAdapter = moshi.adapter(KagiPromptRequest::class.java)
+
+    fun getSessionToken(): String {
+        return extractToken(sessionToken)
+    }
 
     fun getQrRemoteSession(): Result<QrRemoteSessionDetails> {
         val request = Request.Builder().url("https://kagi.com/signin").get().build()
@@ -246,6 +250,24 @@ class AssistantClient(
         }
 
         return Result.failure(Exception("Failed to check QR remote session"))
+    }
+
+    suspend fun deleteChat(threadId: String, onDone: () -> Unit = {}) {
+        try {
+            this.fetchStream(
+                streamId = "delete_thread",
+                url = "https://kagi.com/assistant/thread_delete",
+                body = """{"threads":[{"id":"$threadId","title":".", "saved": true, "shared": false, "tag_ids": []}]}""",
+                extraHeaders = mapOf("Content-Type" to "application/json"),
+                onChunk = { chunk ->
+                    if (chunk.done) {
+                        onDone()
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun getKagiCompanions(): List<KagiCompanion> {

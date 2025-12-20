@@ -129,17 +129,7 @@ class MainState(
     }
 
     suspend fun deleteChat() {
-        assistantClient.fetchStream(
-            streamId = "delete_thread",
-            url = "https://kagi.com/assistant/thread_delete",
-            body = """{"threads":[{"id":"$currentThreadId","title":".", "saved": true, "shared": false, "tag_ids": []}]}""",
-            extraHeaders = mapOf("Content-Type" to "application/json"),
-            onChunk = { chunk ->
-                if (chunk.done) {
-                    newChat()
-                }
-            }
-        )
+        assistantClient.deleteChat(currentThreadId ?: return, { newChat() })
     }
 
     fun newChat() {
