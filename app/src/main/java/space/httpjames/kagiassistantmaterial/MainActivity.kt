@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import space.httpjames.kagiassistantmaterial.ui.companions.CompanionsScreen
 import space.httpjames.kagiassistantmaterial.ui.landing.LandingScreen
 import space.httpjames.kagiassistantmaterial.ui.main.MainScreen
+import space.httpjames.kagiassistantmaterial.ui.settings.AssistantSettingsWebViewScreen
 import space.httpjames.kagiassistantmaterial.ui.settings.SettingsScreen
 import space.httpjames.kagiassistantmaterial.ui.theme.KagiAssistantTheme
 import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
@@ -26,7 +27,8 @@ enum class Screens(val route: String) {
     LANDING("landing"),
     MAIN("main"),
     SETTINGS("settings"),
-    COMPANIONS("companions")
+    COMPANIONS("companions"),
+    ASSISTANT_SETTINGS_WEBVIEW("assistant_settings_webview")
 }
 
 class MainActivity : ComponentActivity() {
@@ -111,6 +113,12 @@ class MainActivity : ComponentActivity() {
                         val assistantClient = AssistantClient(sessionToken!!)
                         CompanionsScreen(
                             assistantClient = assistantClient,
+                            navController = navController
+                        )
+                    }
+                    composable(Screens.ASSISTANT_SETTINGS_WEBVIEW.route) {
+                        AssistantSettingsWebViewScreen(
+                            sessionToken = sessionToken ?: "",
                             navController = navController
                         )
                     }

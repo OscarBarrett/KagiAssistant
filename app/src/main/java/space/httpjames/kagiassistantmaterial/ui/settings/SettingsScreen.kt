@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.PhoneInTalk
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -243,6 +244,7 @@ fun SettingsScreen(
                 )
             }
 
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -263,6 +265,24 @@ fun SettingsScreen(
                 )
             }
 
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+            ) {
+                SettingsItem(
+                    icon = Icons.Default.Public,
+                    title = "Cloud settings",
+                    subtitle = "Manage instructions, assistants, and more",
+                    pos = SettingsItemPosition.SINGLE,
+                    iconBackgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    onClick = {
+                        navController.navigate(Screens.ASSISTANT_SETTINGS_WEBVIEW.route)
+                    }
+                )
+            }
+            
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
