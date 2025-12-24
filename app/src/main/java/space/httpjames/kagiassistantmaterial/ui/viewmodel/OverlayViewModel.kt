@@ -306,14 +306,12 @@ class OverlayViewModel(
                     val promptFile = MultipartAssistantPromptFile(tempFile, thumbnail, "image/webp")
 
                     assistantClient.sendMultipartRequest(
-                        streamId = "overlay.id",
                         url = "https://kagi.com/assistant/prompt",
                         requestBody = requestBody,
                         files = listOf(promptFile)
                     ).collect { chunk -> onChunk(chunk) }
                 } else {
                     assistantClient.fetchStream(
-                        streamId = "overlay.id",
                         url = "https://kagi.com/assistant/prompt",
                         method = "POST",
                         body = jsonString,

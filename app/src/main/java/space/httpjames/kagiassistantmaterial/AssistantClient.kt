@@ -29,7 +29,6 @@ import space.httpjames.kagiassistantmaterial.ui.message.toObject
 import space.httpjames.kagiassistantmaterial.utils.JsonLenient
 import java.io.File
 import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 data class AssistantThread(
@@ -122,7 +121,6 @@ data class KagiPromptRequestThreads(
 )
 
 data class StreamChunk(
-    val streamId: String,
     val header: String,
     val data: String,
     val done: Boolean,
@@ -293,7 +291,6 @@ class AssistantClient(
     suspend fun deleteChat(threadId: String): Result<Unit> {
         return try {
             fetchStream(
-                streamId = "delete_thread",
                 url = "https://kagi.com/assistant/thread_delete",
                 body = """{"threads":[{"id":"$threadId","title":".", "saved": true, "shared": false, "tag_ids": []}]}""",
                 extraHeaders = mapOf("Content-Type" to "application/json")
@@ -349,7 +346,6 @@ class AssistantClient(
         val profiles = mutableListOf<AssistantProfile>()
 
         fetchStream(
-            streamId = UUID.randomUUID().toString(),
             url = "https://kagi.com/assistant/profile_list",
             method = "POST",
             body = "{}",
@@ -375,7 +371,6 @@ class AssistantClient(
         var threadMap = mutableMapOf<String, MutableList<AssistantThread>>()
 
         fetchStream(
-            streamId = UUID.randomUUID().toString(),
             url = "https://kagi.com/assistant/thread_list",
             method = "POST",
             body = "{}",
@@ -413,7 +408,6 @@ class AssistantClient(
      * response validation, streaming chunks, and completion signaling.
      */
     private fun performStreamingRequest(
-        streamId: String,
         request: Request,
     ): Flow<StreamChunk> = flow {
         okHttpClient.newCall(request).execute().use { response ->
@@ -425,10 +419,10 @@ class AssistantClient(
                 ?: throw IOException("Empty response body from ${request.url}")
 
             try {
-                streamLoop(streamId, source).collect { chunk ->
+                streamLoop(source).collect { chunk ->
                     emit(chunk)
                 }
-                emit(StreamChunk(streamId, "", "", true))
+                emit(StreamChunk("", "", true))
             } finally {
                 response.close()
             }
@@ -440,14 +434,13 @@ class AssistantClient(
      * The flow is collected on the IO dispatcher and can be consumed on any dispatcher.
      */
     fun fetchStream(
-        streamId: String,
         url: String,
         body: String? = null,
         method: String = "POST",
         extraHeaders: Map<String, String> = emptyMap(),
     ): Flow<StreamChunk> {
         val request = buildRequest(url, method, body, extraHeaders)
-        return performStreamingRequest(streamId, request)
+        return performStreamingRequest(request)
     }
 
     /**
@@ -489,17 +482,15 @@ class AssistantClient(
     }
 
     fun sendMultipartRequest(
-        streamId: String,
         url: String,
         requestBody: KagiPromptRequest,
         files: List<MultipartAssistantPromptFile>,
     ): Flow<StreamChunk> {
         val request = buildMultipartRequest(url, requestBody, files)
-        return performStreamingRequest(streamId, request)
+        return performStreamingRequest(request)
     }
 
     private suspend fun streamLoop(
-        streamId: String,
         source: BufferedSource,
     ): Flow<StreamChunk> = flow {
         val nullByte = '\u0000'.code.toByte()
@@ -518,7 +509,7 @@ class AssistantClient(
                 source.skip(1) // skip the colon
                 val body = source.readUtf8(terminatorIndex - colonIndex - 1)
 
-                emit(StreamChunk(streamId, header, body, false))
+                emit(StreamChunk(header, body, false))
             } else {
                 source.skip(terminatorIndex)
             }

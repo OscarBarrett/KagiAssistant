@@ -198,7 +198,6 @@ class MainViewModel(
             try {
                 _messagesState.update { it.copy(callState = DataFetchingState.FETCHING) }
                 repository.fetchStream(
-                    streamId = "8ce77b1b-35c5-4262-8821-af3b33d1cf0f",
                     url = "https://kagi.com/assistant/thread_open",
                     method = "POST",
                     body = """{"focus":{"thread_id":"$threadId"}}""",
@@ -416,7 +415,6 @@ class MainViewModel(
         _messagesState.update { it.copy(messages = localMessages.toList()) }
 
         viewModelScope.launch(Dispatchers.IO) {
-            val streamId = UUID.randomUUID().toString()
             var lastStateUpdateTime = 0L
 
             val branchId = localMessages.lastOrNull()?.branchIds?.lastOrNull()
@@ -620,7 +618,6 @@ class MainViewModel(
 
                 try {
                     repository.sendMultipartRequest(
-                        streamId = streamId,
                         url = url,
                         requestBody = requestBody,
                         files = files
@@ -631,7 +628,6 @@ class MainViewModel(
             } else {
                 try {
                     repository.fetchStream(
-                        streamId = streamId,
                         url = url,
                         method = "POST",
                         body = jsonString,
