@@ -50,6 +50,7 @@ import kotlinx.coroutines.launch
 import space.httpjames.kagiassistantmaterial.AssistantClient
 import space.httpjames.kagiassistantmaterial.MainActivity
 import space.httpjames.kagiassistantmaterial.ui.assist.OverlayActionButton
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 
 @Composable
 fun AssistantOverlayScreen(
@@ -96,7 +97,7 @@ fun AssistantOverlayScreen(
     }
 
     LaunchedEffect(Unit) {
-        val useMiniOverlay = prefs.getBoolean("use_mini_overlay", true)
+        val useMiniOverlay = prefs.getBoolean(PreferenceKey.USE_MINI_OVERLAY.key, PreferenceKey.DEFAULT_USE_MINI_OVERLAY)
         if (useMiniOverlay) {
             visible = true
         } else {

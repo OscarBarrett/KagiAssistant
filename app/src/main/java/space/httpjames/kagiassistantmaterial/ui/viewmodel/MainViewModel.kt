@@ -43,6 +43,7 @@ import space.httpjames.kagiassistantmaterial.StreamChunk
 import space.httpjames.kagiassistantmaterial.data.repository.AssistantRepository
 import space.httpjames.kagiassistantmaterial.parseMetadata
 import space.httpjames.kagiassistantmaterial.toObject
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import space.httpjames.kagiassistantmaterial.utils.DataFetchingState
 import java.io.File
 import java.io.FileOutputStream
@@ -154,7 +155,7 @@ class MainViewModel(
             )
         }
         _threadsState.update { it.copy(currentThreadId = null) }
-        prefs.edit().remove("savedThreadId").apply()
+        prefs.edit().remove(PreferenceKey.SAVED_THREAD_ID.key).apply()
     }
 
     fun toggleIsTemporaryChat() {
@@ -190,7 +191,7 @@ class MainViewModel(
             )
         }
         _messagesState.update { it.copy(currentThreadTitle = null) }
-        prefs.edit().putString("savedThreadId", threadId).apply()
+        prefs.edit().putString(PreferenceKey.SAVED_THREAD_ID.key, threadId).apply()
 
         viewModelScope.launch {
             try {
@@ -267,7 +268,7 @@ class MainViewModel(
     }
 
     fun restoreThread() {
-        val savedId = prefs.getString("savedThreadId", null)
+        val savedId = prefs.getString(PreferenceKey.SAVED_THREAD_ID.key, null)
         if (savedId != null && savedId != _threadsState.value.currentThreadId) {
             onThreadSelected(savedId)
         }
@@ -310,16 +311,16 @@ class MainViewModel(
     }
 
     val showKeyboardAutomatically: Boolean
-        get() = prefs.getBoolean("open_keyboard_automatically", false)
+        get() = prefs.getBoolean(PreferenceKey.OPEN_KEYBOARD_AUTOMATICALLY.key, PreferenceKey.DEFAULT_OPEN_KEYBOARD_AUTOMATICALLY)
 
     fun restoreText() {
         _messageCenterState.update {
-            it.copy(text = prefs.getString("savedText", "") ?: "")
+            it.copy(text = prefs.getString(PreferenceKey.SAVED_TEXT.key, PreferenceKey.DEFAULT_SAVED_TEXT) ?: "")
         }
     }
 
     private fun saveText(newText: String) {
-        prefs.edit().putString("savedText", newText).apply()
+        prefs.edit().putString(PreferenceKey.SAVED_TEXT.key, newText).apply()
     }
 
     fun onMessageCenterTextChanged(newText: String) {
@@ -340,7 +341,7 @@ class MainViewModel(
     }
 
     fun getProfile(): AssistantProfile? {
-        val key = prefs.getString("profile", null) ?: return null
+        val key = prefs.getString(PreferenceKey.PROFILE.key, null) ?: return null
         return _messageCenterState.value.profiles.find { it.key == key }
     }
 

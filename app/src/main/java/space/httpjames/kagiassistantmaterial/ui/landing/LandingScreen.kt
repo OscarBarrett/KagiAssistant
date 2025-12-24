@@ -55,6 +55,7 @@ import space.httpjames.kagiassistantmaterial.AssistantClient
 import space.httpjames.kagiassistantmaterial.R
 import space.httpjames.kagiassistantmaterial.ui.viewmodel.AssistantViewModelFactory
 import space.httpjames.kagiassistantmaterial.ui.viewmodel.LandingViewModel
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import kotlin.math.abs
 
 @Preview
@@ -64,7 +65,7 @@ fun LandingScreen(onLoginSuccess: (String) -> Unit = {}) {
     val prefs =
         context.getSharedPreferences("assistant_prefs", android.content.Context.MODE_PRIVATE)
     val cacheDir = context.cacheDir.absolutePath
-    val sessionToken = prefs.getString("session_token", "") ?: ""
+    val sessionToken = prefs.getString(PreferenceKey.SESSION_TOKEN.key, PreferenceKey.DEFAULT_SESSION_TOKEN) ?: ""
 
     // For preview mode, we need a minimal AssistantClient - in real usage this will be provided
     val assistantClient = remember { AssistantClient(sessionToken) }

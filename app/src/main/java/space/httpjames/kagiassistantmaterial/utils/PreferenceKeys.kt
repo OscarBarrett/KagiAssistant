@@ -1,0 +1,26 @@
+package space.httpjames.kagiassistantmaterial.utils
+
+enum class PreferenceKey(val key: String) {
+    SESSION_TOKEN("session_token"),
+    MIC_GRANTED("mic_granted"),
+    ASSISTANT_MODEL("assistant_model"),
+    USE_MINI_OVERLAY("use_mini_overlay"),
+    AUTO_SPEAK_REPLIES("auto_speak_replies"),
+    OPEN_KEYBOARD_AUTOMATICALLY("open_keyboard_automatically"),
+    SAVED_TEXT("savedText"),
+    SAVED_THREAD_ID("savedThreadId"),
+    COMPANION("companion"),
+    PROFILE("profile"),
+    RECENTLY_USED_PROFILES("recently_used_profiles");
+
+    companion object {
+        const val DEFAULT_ASSISTANT_MODEL = "gemini-2-5-flash-lite"
+        const val DEFAULT_SESSION_TOKEN =
+            "" // this will never be filled. but it's there for graceful error handling (and maybe some dangerous debugging
+        const val DEFAULT_SAVED_TEXT = ""
+        const val DEFAULT_RECENTLY_USED_PROFILES = "[]"
+        const val DEFAULT_USE_MINI_OVERLAY = true
+        const val DEFAULT_AUTO_SPEAK_REPLIES = true
+        const val DEFAULT_OPEN_KEYBOARD_AUTOMATICALLY = false
+    }
+}

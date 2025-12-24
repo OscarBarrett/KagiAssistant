@@ -15,6 +15,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import space.httpjames.kagiassistantmaterial.AssistantClient
 import space.httpjames.kagiassistantmaterial.ui.message.AssistantProfile
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import space.httpjames.kagiassistantmaterial.utils.DataFetchingState
 
 @Composable
@@ -43,7 +44,7 @@ class ModelBottomSheetState(
 
     private var recentlyUsed by mutableStateOf<List<String>>(emptyList())
 
-    private var selectedProfileId by mutableStateOf(prefs.getString("profile", null))
+    private var selectedProfileId by mutableStateOf(prefs.getString(PreferenceKey.PROFILE.key, null))
 
     val filteredProfiles by derivedStateOf {
         if (searchQuery.isBlank()) {
@@ -57,8 +58,8 @@ class ModelBottomSheetState(
     }
 
     init {
-        val recentJson = prefs.getString("recently_used_profiles", "[]")
-        recentlyUsed = Json.decodeFromString<List<String>>(recentJson ?: "[]")
+        val recentJson = prefs.getString(PreferenceKey.RECENTLY_USED_PROFILES.key, PreferenceKey.DEFAULT_RECENTLY_USED_PROFILES)
+        recentlyUsed = Json.decodeFromString<List<String>>(recentJson ?: PreferenceKey.DEFAULT_RECENTLY_USED_PROFILES)
     }
 
     fun fetchProfiles() {
@@ -88,7 +89,7 @@ class ModelBottomSheetState(
     }
 
     fun onProfileSelected(profile: AssistantProfile) {
-        prefs.edit().putString("profile", profile.key).apply()
+        prefs.edit().putString(PreferenceKey.PROFILE.key, profile.key).apply()
         selectedProfileId = profile.key
 
         // Update recently used list
@@ -96,7 +97,7 @@ class ModelBottomSheetState(
         updatedRecentlyUsed.remove(profile.key)
         updatedRecentlyUsed.add(0, profile.key)
         val trimmedList = updatedRecentlyUsed.take(5)
-        prefs.edit().putString("recently_used_profiles", Json.encodeToString(trimmedList)).apply()
+        prefs.edit().putString(PreferenceKey.RECENTLY_USED_PROFILES.key, Json.encodeToString(trimmedList)).apply()
         recentlyUsed = trimmedList
     }
 }

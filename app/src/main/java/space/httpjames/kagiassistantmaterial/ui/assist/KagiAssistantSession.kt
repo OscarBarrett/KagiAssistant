@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import space.httpjames.kagiassistantmaterial.AssistantClient
 import space.httpjames.kagiassistantmaterial.ui.overlay.AssistantOverlayScreen
 import space.httpjames.kagiassistantmaterial.ui.theme.KagiAssistantTheme
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 
 class KagiAssistantSession(context: Context) : VoiceInteractionSession(context),
     LifecycleOwner,
@@ -55,7 +56,7 @@ class KagiAssistantSession(context: Context) : VoiceInteractionSession(context),
 
     override fun onCreateContentView(): View {
         val prefs = context.getSharedPreferences("assistant_prefs", Context.MODE_PRIVATE)
-        val sessionToken = prefs.getString("session_token", null)
+        val sessionToken = prefs.getString(PreferenceKey.SESSION_TOKEN.key, PreferenceKey.DEFAULT_SESSION_TOKEN)
         val flow = reinvokeFlow
 
         val composeView = ComposeView(context).apply {

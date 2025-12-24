@@ -18,6 +18,7 @@ import space.httpjames.kagiassistantmaterial.ui.landing.LandingScreen
 import space.httpjames.kagiassistantmaterial.ui.main.MainScreen
 import space.httpjames.kagiassistantmaterial.ui.settings.SettingsScreen
 import space.httpjames.kagiassistantmaterial.ui.theme.KagiAssistantTheme
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 
 enum class Screens(val route: String) {
     LANDING("landing"),
@@ -53,14 +54,14 @@ class MainActivity : ComponentActivity() {
 
         val launcher =
             registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-                prefs.edit().putBoolean("mic_granted", granted).apply()
+                prefs.edit().putBoolean(PreferenceKey.MIC_GRANTED.key, granted).apply()
             }
         launcher.launch(Manifest.permission.RECORD_AUDIO)
 
         setContent {
             KagiAssistantTheme {
                 val navController = rememberNavController()
-                var sessionToken = prefs.getString("session_token", null)
+                var sessionToken = prefs.getString(PreferenceKey.SESSION_TOKEN.key, PreferenceKey.DEFAULT_SESSION_TOKEN)
 
                 NavHost(
                     navController = navController,
@@ -68,7 +69,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     composable(Screens.LANDING.route) {
                         LandingScreen(onLoginSuccess = {
-                            prefs.edit().putString("session_token", it).apply()
+                            prefs.edit().putString(PreferenceKey.SESSION_TOKEN.key, it).apply()
                             sessionToken = it
                             navController.navigate(Screens.MAIN.route) {
                                 popUpTo(Screens.LANDING.route) { inclusive = true }

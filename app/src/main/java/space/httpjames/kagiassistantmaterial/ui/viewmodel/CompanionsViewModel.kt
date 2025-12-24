@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import space.httpjames.kagiassistantmaterial.KagiCompanion
 import space.httpjames.kagiassistantmaterial.data.repository.AssistantRepository
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import space.httpjames.kagiassistantmaterial.utils.DataFetchingState
 import java.io.File
 
@@ -61,7 +62,7 @@ class CompanionsViewModel(
 
     fun setCompanion(id: String?) {
         if (id == null) {
-            prefs.edit().remove("companion").apply()
+            prefs.edit().remove(PreferenceKey.COMPANION.key).apply()
             _uiState.update { it.copy(selectedCompanion = null) }
             return
         }
@@ -70,11 +71,11 @@ class CompanionsViewModel(
         val svgFile = File(cacheDir, "companion_$id.svg")
         svgFile.writeText(companion.data, Charsets.UTF_8)
 
-        prefs.edit().putString("companion", id).apply()
+        prefs.edit().putString(PreferenceKey.COMPANION.key, id).apply()
         _uiState.update { it.copy(selectedCompanion = id) }
     }
 
     fun getCurrentCompanion(): String? {
-        return prefs.getString("companion", null)
+        return prefs.getString(PreferenceKey.COMPANION.key, null)
     }
 }

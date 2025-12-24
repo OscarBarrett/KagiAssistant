@@ -34,6 +34,7 @@ import space.httpjames.kagiassistantmaterial.StreamChunk
 import space.httpjames.kagiassistantmaterial.ui.message.AssistantProfile
 import space.httpjames.kagiassistantmaterial.ui.message.to84x84ThumbFile
 import space.httpjames.kagiassistantmaterial.ui.message.toObject
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import space.httpjames.kagiassistantmaterial.utils.TtsManager
 import java.io.File
 
@@ -141,12 +142,12 @@ class AssistantOverlayState(
 
 
     fun saveText() {
-        prefs.edit().putString("savedText", text).apply()
+        prefs.edit().putString(PreferenceKey.SAVED_TEXT.key, text).apply()
     }
 
     fun saveThreadId() {
         println("saving thread id $currentThreadId")
-        prefs.edit().putString("savedThreadId", currentThreadId).apply()
+        prefs.edit().putString(PreferenceKey.SAVED_THREAD_ID.key, currentThreadId).apply()
     }
 
     fun onTextChanged(newText: String) {
@@ -171,7 +172,7 @@ class AssistantOverlayState(
             )
 
             val selectedAssistantModelKey =
-                prefs.getString("assistant_model", "gemini-2-5-flash-lite")
+                prefs.getString(PreferenceKey.ASSISTANT_MODEL.key, PreferenceKey.DEFAULT_ASSISTANT_MODEL)
 
             val profile = profiles.firstOrNull { it.key == selectedAssistantModelKey }
 
@@ -228,7 +229,7 @@ class AssistantOverlayState(
 
                         if (dto.md != null) {
                             assistantMessageMd = dto.md
-                            val autoSpeakReplies = prefs.getBoolean("auto_speak_replies", true)
+                            val autoSpeakReplies = prefs.getBoolean(PreferenceKey.AUTO_SPEAK_REPLIES.key, PreferenceKey.DEFAULT_AUTO_SPEAK_REPLIES)
                             if (autoSpeakReplies) {
                                 ttsManager.speak(text = stripMarkdown(assistantMessageMd))
                                 isSpeaking = true
@@ -292,7 +293,7 @@ class AssistantOverlayState(
 
     init {
         speechRecognizer.setRecognitionListener(listener)
-        val useMiniOverlay = prefs.getBoolean("use_mini_overlay", true)
+        val useMiniOverlay = prefs.getBoolean(PreferenceKey.USE_MINI_OVERLAY.key, PreferenceKey.DEFAULT_USE_MINI_OVERLAY)
         if (useMiniOverlay) {
             if (permissionOk) speechRecognizer.startListening(intent)
             coroutineScope.launch {

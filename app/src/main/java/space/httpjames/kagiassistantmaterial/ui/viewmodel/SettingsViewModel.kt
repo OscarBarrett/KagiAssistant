@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import space.httpjames.kagiassistantmaterial.data.repository.AssistantRepository
 import space.httpjames.kagiassistantmaterial.ui.message.AssistantProfile
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import space.httpjames.kagiassistantmaterial.utils.DataFetchingState
 
 /**
@@ -18,13 +19,13 @@ import space.httpjames.kagiassistantmaterial.utils.DataFetchingState
 data class SettingsUiState(
     val emailAddress: String = "",
     val emailAddressCallState: DataFetchingState = DataFetchingState.FETCHING,
-    val autoSpeakReplies: Boolean = true,
-    val openKeyboardAutomatically: Boolean = false,
+    val autoSpeakReplies: Boolean = PreferenceKey.DEFAULT_AUTO_SPEAK_REPLIES,
+    val openKeyboardAutomatically: Boolean = PreferenceKey.DEFAULT_OPEN_KEYBOARD_AUTOMATICALLY,
     val profiles: List<AssistantProfile> = emptyList(),
     val showAssistantModelChooserModal: Boolean = false,
-    val selectedAssistantModel: String = "gemini-2-5-flash-lite",
+    val selectedAssistantModel: String = PreferenceKey.DEFAULT_ASSISTANT_MODEL,
     val selectedAssistantModelName: String? = null,
-    val useMiniOverlay: Boolean = true
+    val useMiniOverlay: Boolean = PreferenceKey.DEFAULT_USE_MINI_OVERLAY
 )
 
 /**
@@ -38,10 +39,10 @@ class SettingsViewModel(
 
     private val _uiState = MutableStateFlow(
         SettingsUiState(
-            autoSpeakReplies = prefs.getBoolean("auto_speak_replies", true),
-            openKeyboardAutomatically = prefs.getBoolean("open_keyboard_automatically", false),
-            selectedAssistantModel = prefs.getString("assistant_model", null) ?: "gemini-2-5-flash-lite",
-            useMiniOverlay = prefs.getBoolean("use_mini_overlay", true)
+            autoSpeakReplies = prefs.getBoolean(PreferenceKey.AUTO_SPEAK_REPLIES.key, PreferenceKey.DEFAULT_AUTO_SPEAK_REPLIES),
+            openKeyboardAutomatically = prefs.getBoolean(PreferenceKey.OPEN_KEYBOARD_AUTOMATICALLY.key, PreferenceKey.DEFAULT_OPEN_KEYBOARD_AUTOMATICALLY),
+            selectedAssistantModel = prefs.getString(PreferenceKey.ASSISTANT_MODEL.key, null) ?: PreferenceKey.DEFAULT_ASSISTANT_MODEL,
+            useMiniOverlay = prefs.getBoolean(PreferenceKey.USE_MINI_OVERLAY.key, PreferenceKey.DEFAULT_USE_MINI_OVERLAY)
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -72,7 +73,7 @@ class SettingsViewModel(
     fun toggleUseMiniOverlay() {
         val newValue = !_uiState.value.useMiniOverlay
         _uiState.update { it.copy(useMiniOverlay = newValue) }
-        prefs.edit().putBoolean("use_mini_overlay", newValue).apply()
+        prefs.edit().putBoolean(PreferenceKey.USE_MINI_OVERLAY.key, newValue).apply()
     }
 
     fun showAssistantModelChooser() {
@@ -84,7 +85,7 @@ class SettingsViewModel(
     }
 
     fun saveAssistantModel(key: String) {
-        prefs.edit().putString("assistant_model", key).apply()
+        prefs.edit().putString(PreferenceKey.ASSISTANT_MODEL.key, key).apply()
         _uiState.update {
             it.copy(
                 selectedAssistantModel = key,
@@ -96,13 +97,13 @@ class SettingsViewModel(
     fun toggleOpenKeyboardAutomatically() {
         val newValue = !_uiState.value.openKeyboardAutomatically
         _uiState.update { it.copy(openKeyboardAutomatically = newValue) }
-        prefs.edit().putBoolean("open_keyboard_automatically", newValue).apply()
+        prefs.edit().putBoolean(PreferenceKey.OPEN_KEYBOARD_AUTOMATICALLY.key, newValue).apply()
     }
 
     fun toggleAutoSpeakReplies() {
         val newValue = !_uiState.value.autoSpeakReplies
         _uiState.update { it.copy(autoSpeakReplies = newValue) }
-        prefs.edit().putBoolean("auto_speak_replies", newValue).apply()
+        prefs.edit().putBoolean(PreferenceKey.AUTO_SPEAK_REPLIES.key, newValue).apply()
     }
 
     fun clearAllPrefs() {
@@ -110,10 +111,10 @@ class SettingsViewModel(
         // Reset state to defaults
         _uiState.update {
             SettingsUiState(
-                autoSpeakReplies = true,
-                openKeyboardAutomatically = false,
-                selectedAssistantModel = "gemini-2-5-flash-lite",
-                useMiniOverlay = true
+                autoSpeakReplies = PreferenceKey.DEFAULT_AUTO_SPEAK_REPLIES,
+                openKeyboardAutomatically = PreferenceKey.DEFAULT_OPEN_KEYBOARD_AUTOMATICALLY,
+                selectedAssistantModel = PreferenceKey.DEFAULT_ASSISTANT_MODEL,
+                useMiniOverlay = PreferenceKey.DEFAULT_USE_MINI_OVERLAY
             )
         }
     }
