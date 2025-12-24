@@ -26,38 +26,43 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import space.httpjames.kagiassistantmaterial.AssistantClient
 import space.httpjames.kagiassistantmaterial.utils.DataFetchingState
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.AssistantViewModelFactory
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.ModelBottomSheetViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ModelBottomSheet(
     assistantClient: AssistantClient,
-    coroutineScope: CoroutineScope,
+    prefs: android.content.SharedPreferences,
+    cacheDir: String,
     onDismissRequest: () -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false,
     )
 
-    val state = rememberModelBottomSheetState(
-        assistantClient = assistantClient,
-        coroutineScope = coroutineScope
+    val viewModel: ModelBottomSheetViewModel = viewModel(
+        factory = AssistantViewModelFactory(assistantClient, prefs, cacheDir)
     )
+    val uiState by viewModel.uiState.collectAsState()
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
     ) {
         LaunchedEffect(Unit) {
-            state.fetchProfiles()
+            viewModel.fetchProfiles()
         }
-        if (state.profiles.isEmpty() && state.profilesCallState == DataFetchingState.FETCHING) {
+        if (uiState.profiles.isEmpty() && uiState.profilesCallState == DataFetchingState.FETCHING) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -66,11 +71,11 @@ fun ModelBottomSheet(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (state.profiles.isEmpty() && state.profilesCallState == DataFetchingState.ERRORED) {
-            ModelsLoadingErrored(onRetryClick = { state.fetchProfiles() })
+        } else if (uiState.profiles.isEmpty() && uiState.profilesCallState == DataFetchingState.ERRORED) {
+            ModelsLoadingErrored(onRetryClick = { viewModel.fetchProfiles() })
         } else {
-            val recentlyUsedProfiles = state.getRecentlyUsedProfiles()
-            val remainingProfiles = state.filteredProfiles
+            val recentlyUsedProfiles = uiState.recentlyUsedProfiles
+            val remainingProfiles = uiState.filteredProfiles
             val groupedProfiles = remainingProfiles.groupBy { it.family }
 
             Column {
@@ -100,13 +105,13 @@ fun ModelBottomSheet(
                             }
                         }
                         items(recentlyUsedProfiles) { profile ->
-                            val selectedProfile = state.getProfile()
+                            val selectedProfile = uiState.selectedProfile
                             val isSelected = selectedProfile?.key == profile.key
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        state.onProfileSelected(profile)
+                                        viewModel.onProfileSelected(profile)
                                         onDismissRequest()
                                     }
                                     .padding(
@@ -158,13 +163,13 @@ fun ModelBottomSheet(
                             }
                         }
                         items(profilesInFamily) { profile ->
-                            val selectedProfile = state.getProfile()
+                            val selectedProfile = uiState.selectedProfile
                             val isSelected = selectedProfile?.key == profile.key
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        state.onProfileSelected(profile)
+                                        viewModel.onProfileSelected(profile)
                                         onDismissRequest()
                                     }
                                     .padding(

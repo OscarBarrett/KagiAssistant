@@ -28,6 +28,7 @@ class AssistantViewModelFactory(
             SettingsViewModel::class.java -> SettingsViewModel(repository, prefs) as T
             CompanionsViewModel::class.java -> CompanionsViewModel(repository, prefs, cacheDir) as T
             LandingViewModel::class.java -> LandingViewModel(repository) as T
+            ModelBottomSheetViewModel::class.java -> ModelBottomSheetViewModel(repository, prefs) as T
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
     }

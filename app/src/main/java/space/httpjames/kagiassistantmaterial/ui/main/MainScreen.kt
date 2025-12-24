@@ -197,7 +197,9 @@ fun MainScreen(
                     threadId = threadsState.currentThreadId,
                     assistantClient = assistantClient,
                     viewModel = viewModel,
-                    coroutineScope = scope
+                    coroutineScope = scope,
+                    prefs = prefs,
+                    cacheDir = cacheDir
                 )
             }
         }

@@ -66,6 +66,8 @@ fun MessageCenter(
     modifier: Modifier = Modifier,
     viewModel: MainViewModel,
     coroutineScope: CoroutineScope,
+    prefs: android.content.SharedPreferences,
+    cacheDir: String,
 ) {
     val threadsState by viewModel.threadsState.collectAsState()
     val messagesState by viewModel.messagesState.collectAsState()
@@ -257,7 +259,8 @@ fun MessageCenter(
     if (messageCenterState.showModelBottomSheet) {
         ModelBottomSheet(
             assistantClient = assistantClient,
-            coroutineScope = coroutineScope,
+            prefs = prefs,
+            cacheDir = cacheDir,
             onDismissRequest = { viewModel.dismissModelBottomSheet() }
         )
     }
