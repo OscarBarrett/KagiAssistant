@@ -25,13 +25,16 @@ import space.httpjames.kagiassistantmaterial.R
 import space.httpjames.kagiassistantmaterial.ui.chat.HtmlCard
 import space.httpjames.kagiassistantmaterial.ui.chat.HtmlPreprocessor
 import space.httpjames.kagiassistantmaterial.ui.message.ShimmeringMessagePlaceholder
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.OverlayUiState
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.OverlayViewModel
 
 @Composable
 fun AssistantMessageArea(
-    state: AssistantOverlayState,
+    uiState: OverlayUiState,
+    viewModel: OverlayViewModel,
     modifier: Modifier = Modifier
 ) {
-    if (state.assistantMessage.isNotEmpty() || state.isWaitingForMessageFirstToken || !state.assistantDone) {
+    if (uiState.assistantMessage.isNotEmpty() || uiState.isWaitingForMessageFirstToken || !uiState.assistantDone) {
         Column(modifier = modifier) {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -54,10 +57,10 @@ fun AssistantMessageArea(
 
                 FilledIconButton(
                     onClick = {
-                        if (state.isSpeaking) {
-                            state.stopSpeaking()
+                        if (uiState.isSpeaking) {
+                            viewModel.stopSpeaking()
                         } else {
-                            state.restartSpeaking()
+                            viewModel.restartSpeaking()
                         }
                     },
                     colors = IconButtonDefaults.filledIconButtonColors(
@@ -66,26 +69,26 @@ fun AssistantMessageArea(
                     )
                 ) {
                     Icon(
-                        imageVector = if (state.isSpeaking) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (state.isSpeaking) "Stop speaking" else "Restart speaking",
+                        imageVector = if (uiState.isSpeaking) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (uiState.isSpeaking) "Stop speaking" else "Restart speaking",
                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
 
-            if (state.assistantMessage.isNotEmpty()) {
+            if (uiState.assistantMessage.isNotEmpty()) {
                 Box(
                     modifier = Modifier
                         .heightIn(min = 60.dp)
                         .fillMaxWidth()
                 ) {
                     HtmlCard(
-                        html = HtmlPreprocessor.preprocess("<p>${state.assistantMessage}</p>"),
+                        html = HtmlPreprocessor.preprocess("<p>${uiState.assistantMessage}</p>"),
                         onHeightMeasured = {},
                         minHeight = 60.dp
                     )
                 }
-            } else if (state.isWaitingForMessageFirstToken) {
+            } else if (uiState.isWaitingForMessageFirstToken) {
                 ShimmeringMessagePlaceholder(
                     showNum = 2
                 )

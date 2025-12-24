@@ -13,7 +13,10 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
@@ -27,11 +30,13 @@ import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 
 class KagiAssistantSession(context: Context) : VoiceInteractionSession(context),
     LifecycleOwner,
-    SavedStateRegistryOwner {
+    SavedStateRegistryOwner,
+    ViewModelStoreOwner {
 
     // 2. Initialize the Registries
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    override val viewModelStore = ViewModelStore()
     private var isShowingAlready = false
 
     override val lifecycle: Lifecycle
@@ -60,9 +65,10 @@ class KagiAssistantSession(context: Context) : VoiceInteractionSession(context),
         val flow = reinvokeFlow
 
         val composeView = ComposeView(context).apply {
-            // 4. IMPORTANT: Attach the Lifecycle and Registry to the ViewTree
+            // 4. IMPORTANT: Attach the Lifecycle, Registry, and ViewModelStore to the ViewTree
             setViewTreeLifecycleOwner(this@KagiAssistantSession)
             setViewTreeSavedStateRegistryOwner(this@KagiAssistantSession)
+            setViewTreeViewModelStoreOwner(this@KagiAssistantSession)
 
             setContent {
                 KagiAssistantTheme {
@@ -118,5 +124,6 @@ class KagiAssistantSession(context: Context) : VoiceInteractionSession(context),
     override fun onDestroy() {
         super.onDestroy()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        viewModelStore.clear()
     }
 }

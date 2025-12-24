@@ -26,7 +26,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Screenshot
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,12 +43,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import space.httpjames.kagiassistantmaterial.AssistantClient
 import space.httpjames.kagiassistantmaterial.MainActivity
 import space.httpjames.kagiassistantmaterial.ui.assist.OverlayActionButton
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.OverlayViewModel
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.OverlayViewModelFactory
 import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 
 @Composable
@@ -73,7 +75,10 @@ fun AssistantOverlayScreen(
     val prefs = remember { context.getSharedPreferences("assistant_prefs", Context.MODE_PRIVATE) }
     var visible by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    val state = rememberAssistantOverlayState(assistantClient, context, coroutineScope)
+    val viewModel: OverlayViewModel = viewModel(
+        factory = OverlayViewModelFactory(assistantClient, prefs, context)
+    )
+    val uiState by viewModel.uiState.collectAsState()
     val localFocusContext = LocalFocusManager.current
     val screenshot by screenshotFlow.collectAsState(initial = null)
     val haptics = LocalHapticFeedback.current
@@ -82,8 +87,8 @@ fun AssistantOverlayScreen(
         coroutineScope.launch {
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             localFocusContext.clearFocus()
-            state.saveThreadId()
-            state.saveText()
+            viewModel.saveThreadId()
+            viewModel.saveText()
             awaitFrame()
             context.startActivity(
                 Intent(context, MainActivity::class.java).apply {
@@ -97,7 +102,10 @@ fun AssistantOverlayScreen(
     }
 
     LaunchedEffect(Unit) {
-        val useMiniOverlay = prefs.getBoolean(PreferenceKey.USE_MINI_OVERLAY.key, PreferenceKey.DEFAULT_USE_MINI_OVERLAY)
+        val useMiniOverlay = prefs.getBoolean(
+            PreferenceKey.USE_MINI_OVERLAY.key,
+            PreferenceKey.DEFAULT_USE_MINI_OVERLAY
+        )
         if (useMiniOverlay) {
             visible = true
         } else {
@@ -106,24 +114,22 @@ fun AssistantOverlayScreen(
     }
 
     LaunchedEffect(screenshot) {
-        state._setScreenshot(screenshot)
+        viewModel.setScreenshot(screenshot)
     }
 
     var lines by rememberSaveable { mutableIntStateOf(1) }
 
 
-    DisposableEffect(Unit) { onDispose { state.destroy() } }
-
     LaunchedEffect(Unit) {
         reinvokeFlow.collect {
-            state.restartFlow()
+            viewModel.restartFlow()
             localFocusContext.clearFocus()
         }
     }
 
     LaunchedEffect(visible) {
         if (visible) {
-            state.reset()
+            viewModel.reset()
         }
     }
 
@@ -160,9 +166,9 @@ fun AssistantOverlayScreen(
                     if (screenshot != null) {
                         OverlayActionButton(
                             onClick = {
-                                state.toggleScreenshotAttached()
+                                viewModel.toggleScreenshotAttached()
                             },
-                            done = state.screenshotAttached,
+                            done = uiState.screenshotAttached,
                             actionIcon = Icons.Default.Screenshot,
                             actionText = "Attach Screenshot",
                             doneActionText = "Screenshot Attached"
@@ -171,7 +177,8 @@ fun AssistantOverlayScreen(
                 }
 
                 AssistantOverlayContent(
-                    state = state,
+                    uiState = uiState,
+                    viewModel = viewModel,
                     continueInApp = ::continueInApp,
                     lines = lines,
                     onLinesChanged = { lines = it },
@@ -185,5 +192,4 @@ fun AssistantOverlayScreen(
         }
     }
 }
-
 

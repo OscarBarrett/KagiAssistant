@@ -29,10 +29,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.OverlayUiState
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.OverlayViewModel
 
 @Composable
 fun AssistantOverlayContent(
-    state: AssistantOverlayState,
+    uiState: OverlayUiState,
+    viewModel: OverlayViewModel,
     continueInApp: () -> Unit,
     lines: Int,
     onLinesChanged: (Int) -> Unit,
@@ -98,7 +101,8 @@ fun AssistantOverlayContent(
                         .fillMaxWidth(),
                 ) {
                     AssistantMessageArea(
-                        state = state,
+                        uiState = uiState,
+                        viewModel = viewModel,
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -106,7 +110,8 @@ fun AssistantOverlayContent(
                 }
 
                 AssistantInputArea(
-                    state = state,
+                    uiState = uiState,
+                    viewModel = viewModel,
                     lines = lines,
                     onLinesChanged = onLinesChanged,
                     borderAlpha = borderAlpha,
@@ -115,7 +120,7 @@ fun AssistantOverlayContent(
                             start = 8.dp,
                             end = 12.dp,
                             bottom = 12.dp,
-                            top = if (state.assistantMessage.isNotBlank()) 0.dp else 12.dp
+                            top = if (uiState.assistantMessage.isNotBlank()) 0.dp else 12.dp
                         )
                         .align(Alignment.BottomCenter)
                 )

@@ -37,10 +37,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.OverlayUiState
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.OverlayViewModel
 
 @Composable
 fun AssistantInputArea(
-    state: AssistantOverlayState,
+    uiState: OverlayUiState,
+    viewModel: OverlayViewModel,
     lines: Int,
     onLinesChanged: (Int) -> Unit,
     borderAlpha: Float,
@@ -73,8 +76,8 @@ fun AssistantInputArea(
                     .clickable { focusRequester.requestFocus() }
             ) {
                 BasicTextField(
-                    value = state.text,
-                    onValueChange = { state.onTextChanged(it) },
+                    value = uiState.text,
+                    onValueChange = { viewModel.onTextChanged(it) },
                     textStyle = LocalTextStyle.current.copy(
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface
@@ -93,15 +96,15 @@ fun AssistantInputArea(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .onFocusEvent { event ->
                             if (event.isFocused) {
-                                state.stopListening()
+                                viewModel.stopListening()
                             }
-                            state._setIsTypingMode(event.isFocused)
+                            viewModel.setIsTypingMode(event.isFocused)
                         }
                         .animateContentSize()
                         .fillMaxWidth(),
                     decorationBox = { innerTextField ->
                         Box(contentAlignment = Alignment.CenterStart) {
-                            if (state.text.isEmpty()) {
+                            if (uiState.text.isEmpty()) {
                                 Text(
                                     text = "Speak or tap to type",
                                     style = LocalTextStyle.current.copy(
@@ -120,33 +123,33 @@ fun AssistantInputArea(
 
             FilledIconButton(
                 onClick = {
-                    if (state.isListening) {
-                        state.stopListening()
-                    } else if (!state.isListening && state.text.isEmpty()) {
-                        state.restartFlow()
+                    if (uiState.isListening) {
+                        viewModel.stopListening()
+                    } else if (!uiState.isListening && uiState.text.isEmpty()) {
+                        viewModel.restartFlow()
                     } else {
-                        state.sendMessage()
+                        viewModel.sendMessage()
                         localFocusContext.clearFocus()
-                        state.onTextChanged("")
+                        viewModel.onTextChanged("")
                     }
                 },
                 modifier = Modifier
                     .border(
                         width = 4.dp,
-                        if (state.isListening) col.copy(alpha = borderAlpha)
+                        if (uiState.isListening) col.copy(alpha = borderAlpha)
                         else Color.Transparent,
                         CircleShape
                     )
                     .padding(8.dp)
                     .size(48.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = if (state.isListening) Color.Transparent else MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = if (state.isListening) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = if (uiState.isListening) Color.Transparent else MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = if (uiState.isListening) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimaryContainer
                 )
             ) {
                 Icon(
-                    imageVector = if (state.isTypingMode) Icons.Default.Send else Icons.Default.Mic,
-                    contentDescription = if (state.isTypingMode) "Send message" else null,
+                    imageVector = if (uiState.isTypingMode) Icons.Default.Send else Icons.Default.Mic,
+                    contentDescription = if (uiState.isTypingMode) "Send message" else null,
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
