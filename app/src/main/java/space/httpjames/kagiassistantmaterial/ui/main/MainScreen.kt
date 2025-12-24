@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -52,12 +53,20 @@ fun MainScreen(
     navController: NavController
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val prefs =
         context.getSharedPreferences("assistant_prefs", android.content.Context.MODE_PRIVATE)
     val cacheDir = context.cacheDir.absolutePath
 
     val viewModel: MainViewModel = viewModel(
-        factory = AssistantViewModelFactory(assistantClient, prefs, cacheDir)
+        factory = AssistantViewModelFactory(
+            assistantClient,
+            prefs,
+            cacheDir,
+            onTokenReceived = {
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.TEXT_HANDLE_MOVE)
+            }
+        )
     )
     val threadsState by viewModel.threadsState.collectAsState()
     val messagesState by viewModel.messagesState.collectAsState()

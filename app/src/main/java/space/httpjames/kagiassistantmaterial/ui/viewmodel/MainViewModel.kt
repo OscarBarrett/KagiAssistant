@@ -2,15 +2,11 @@ package space.httpjames.kagiassistantmaterial.ui.viewmodel
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.ThumbnailUtils
 import android.net.Uri
-import android.provider.OpenableColumns
-import android.util.Size
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,10 +24,6 @@ import space.httpjames.kagiassistantmaterial.AssistantThreadMessage
 import space.httpjames.kagiassistantmaterial.AssistantThreadMessageDocument
 import space.httpjames.kagiassistantmaterial.AssistantThreadMessageRole
 import space.httpjames.kagiassistantmaterial.Citation
-import space.httpjames.kagiassistantmaterial.ui.message.AssistantProfile
-import space.httpjames.kagiassistantmaterial.ui.message.copyToTempFile
-import space.httpjames.kagiassistantmaterial.ui.message.getFileName
-import space.httpjames.kagiassistantmaterial.ui.message.to84x84ThumbFile
 import space.httpjames.kagiassistantmaterial.KagiPromptRequest
 import space.httpjames.kagiassistantmaterial.KagiPromptRequestFocus
 import space.httpjames.kagiassistantmaterial.KagiPromptRequestProfile
@@ -42,9 +34,12 @@ import space.httpjames.kagiassistantmaterial.StreamChunk
 import space.httpjames.kagiassistantmaterial.data.repository.AssistantRepository
 import space.httpjames.kagiassistantmaterial.parseMetadata
 import space.httpjames.kagiassistantmaterial.toObject
-import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
+import space.httpjames.kagiassistantmaterial.ui.message.AssistantProfile
+import space.httpjames.kagiassistantmaterial.ui.message.copyToTempFile
+import space.httpjames.kagiassistantmaterial.ui.message.getFileName
+import space.httpjames.kagiassistantmaterial.ui.message.to84x84ThumbFile
 import space.httpjames.kagiassistantmaterial.utils.DataFetchingState
-import java.io.File
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import java.util.UUID
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -91,7 +86,8 @@ data class MessageCenterUiState(
  */
 class MainViewModel(
     private val repository: AssistantRepository,
-    private val prefs: SharedPreferences
+    private val prefs: SharedPreferences,
+    private val onTokenReceived: () -> Unit = {}
 ) : ViewModel() {
 
     // Threads state
@@ -313,11 +309,19 @@ class MainViewModel(
     }
 
     val showKeyboardAutomatically: Boolean
-        get() = prefs.getBoolean(PreferenceKey.OPEN_KEYBOARD_AUTOMATICALLY.key, PreferenceKey.DEFAULT_OPEN_KEYBOARD_AUTOMATICALLY)
+        get() = prefs.getBoolean(
+            PreferenceKey.OPEN_KEYBOARD_AUTOMATICALLY.key,
+            PreferenceKey.DEFAULT_OPEN_KEYBOARD_AUTOMATICALLY
+        )
 
     fun restoreText() {
         _messageCenterState.update {
-            it.copy(text = prefs.getString(PreferenceKey.SAVED_TEXT.key, PreferenceKey.DEFAULT_SAVED_TEXT) ?: "")
+            it.copy(
+                text = prefs.getString(
+                    PreferenceKey.SAVED_TEXT.key,
+                    PreferenceKey.DEFAULT_SAVED_TEXT
+                ) ?: ""
+            )
         }
     }
 
@@ -348,7 +352,8 @@ class MainViewModel(
     }
 
     fun addAttachmentUri(context: Context, uri: String) {
-        val totalSize = _messageCenterState.value.attachmentUris.sumOf { getFileSize(context, Uri.parse(it)) }
+        val totalSize =
+            _messageCenterState.value.attachmentUris.sumOf { getFileSize(context, Uri.parse(it)) }
         val newUriSize = getFileSize(context, Uri.parse(uri))
 
         if (totalSize + newUriSize > 16 * 1024 * 1024) { // 16 MB
@@ -386,7 +391,7 @@ class MainViewModel(
 
     fun sendMessage(context: Context) {
         var messageId = UUID.randomUUID().toString()
-        _messagesState.update { it.copy(inProgressAssistantMessageId = messageId + ".reply") }
+        _messagesState.update { it.copy(inProgressAssistantMessageId = "$messageId.reply") }
 
         // Local accumulator - the source of truth during streaming
         var localMessages = _messagesState.value.messages
@@ -539,16 +544,12 @@ class MainViewModel(
 
                         // Always update local accumulator immediately
                         localMessages = localMessages.map {
-                            if (it.id == incomingId + ".reply") it.copy(content = newText)
+                            if (it.id == "$incomingId.reply") it.copy(content = newText)
                             else it
                         }
 
-                        // Throttle parent sync for performance
-                        val currentTime = System.currentTimeMillis()
-                        if ((currentTime - lastTokenUpdateTime) >= 32) {
-                            lastTokenUpdateTime = currentTime
-                            _messagesState.update { it.copy(messages = localMessages) }
-                        }
+                        _messagesState.update { it.copy(messages = localMessages) }
+                        onTokenReceived()
                     }
                 }
             }
@@ -619,7 +620,12 @@ class MainViewModel(
 
             // Final sync to catch any remaining updates
             withContext(Dispatchers.Main) {
-                _messagesState.update { it.copy(messages = localMessages, inProgressAssistantMessageId = null) }
+                _messagesState.update {
+                    it.copy(
+                        messages = localMessages,
+                        inProgressAssistantMessageId = null
+                    )
+                }
             }
         }
     }

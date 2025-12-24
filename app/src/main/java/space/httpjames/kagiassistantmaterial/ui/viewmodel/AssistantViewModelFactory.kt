@@ -14,7 +14,8 @@ import space.httpjames.kagiassistantmaterial.data.repository.AssistantRepository
 class AssistantViewModelFactory(
     private val assistantClient: AssistantClient,
     private val prefs: SharedPreferences,
-    private val cacheDir: String
+    private val cacheDir: String,
+    private val onTokenReceived: () -> Unit = {}
 ) : ViewModelProvider.Factory {
 
     private val repository: AssistantRepository by lazy {
@@ -24,7 +25,7 @@ class AssistantViewModelFactory(
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when (modelClass) {
-            MainViewModel::class.java -> MainViewModel(repository, prefs) as T
+            MainViewModel::class.java -> MainViewModel(repository, prefs, onTokenReceived) as T
             SettingsViewModel::class.java -> SettingsViewModel(repository, prefs) as T
             CompanionsViewModel::class.java -> CompanionsViewModel(repository, prefs, cacheDir) as T
             LandingViewModel::class.java -> LandingViewModel(repository) as T
@@ -40,12 +41,14 @@ class AssistantViewModelFactory(
  * Usage in Composable:
  * ```
  * val viewModel: MainViewModel = viewModel(factory = AssistantViewModelFactory(client, prefs, cacheDir))
+ * val viewModelWithHaptic: MainViewModel = viewModel(factory = AssistantViewModelFactory(client, prefs, cacheDir) { view.performHapticFeedback(...) })
  * ```
  */
 inline fun <reified VM : ViewModel> viewModelProvider(
     assistantClient: AssistantClient,
     prefs: SharedPreferences,
-    cacheDir: String
+    cacheDir: String,
+    noinline onTokenReceived: () -> Unit = {}
 ): ViewModelProvider.Factory {
-    return AssistantViewModelFactory(assistantClient, prefs, cacheDir)
+    return AssistantViewModelFactory(assistantClient, prefs, cacheDir, onTokenReceived)
 }
