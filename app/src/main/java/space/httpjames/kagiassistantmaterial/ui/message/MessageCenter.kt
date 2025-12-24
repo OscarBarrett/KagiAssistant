@@ -33,6 +33,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
@@ -56,39 +57,20 @@ import space.httpjames.kagiassistantmaterial.AssistantClient
 import space.httpjames.kagiassistantmaterial.AssistantThreadMessage
 import space.httpjames.kagiassistantmaterial.ui.chat.cleanup.ChatCleanupManager
 import space.httpjames.kagiassistantmaterial.ui.main.ModelBottomSheet
+import space.httpjames.kagiassistantmaterial.ui.viewmodel.MainViewModel
 
 @Composable
 fun MessageCenter(
     threadId: String?,
     assistantClient: AssistantClient,
     modifier: Modifier = Modifier,
-    threadMessages: List<AssistantThreadMessage>,
-    setThreadMessages: (List<AssistantThreadMessage>) -> Unit,
+    viewModel: MainViewModel,
     coroutineScope: CoroutineScope,
-    setCurrentThreadId: (String?) -> Unit,
-    editingMessageId: String? = null,
-    text: String,
-    setText: (String) -> Unit,
-    setEditingMessageId: (String?) -> Unit,
-    setCurrentThreadTitle: (String) -> Unit,
-    isTemporaryChat: Boolean,
 ) {
-    val state = rememberMessageCenterState(
-        setCurrentThreadTitle = setCurrentThreadTitle,
-        editingMessageId = editingMessageId,
-        setEditingMessageId = setEditingMessageId,
-        text = text,
-        setText = setText,
-        coroutineScope = coroutineScope,
-        assistantClient = assistantClient,
-        threadMessages = threadMessages,
-        setThreadMessages = setThreadMessages,
-        setCurrentThreadId = setCurrentThreadId,
-        isTemporaryChat = isTemporaryChat
-    )
+    val uiState by viewModel.uiState.collectAsState()
+    val haptics = LocalHapticFeedback.current
 
     val textFieldShape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-    val haptics = LocalHapticFeedback.current
 
     val attachmentPreviewsScrollState = rememberScrollState()
 
@@ -98,8 +80,8 @@ fun MessageCenter(
 
     val context = LocalContext.current
 
-    LaunchedEffect(threadId, threadMessages.size, isTemporaryChat) {
-        if (isTemporaryChat && threadMessages.isNotEmpty() && threadId != null) {
+    LaunchedEffect(threadId, uiState.threadMessages.size, uiState.isTemporaryChat) {
+        if (uiState.isTemporaryChat && uiState.threadMessages.isNotEmpty() && threadId != null) {
             ChatCleanupManager.schedule(context, threadId, assistantClient.getSessionToken())
         }
     }
@@ -107,12 +89,12 @@ fun MessageCenter(
     DisposableEffect(lifecycle) {
         val observer = object : DefaultLifecycleObserver {
             override fun onResume(owner: LifecycleOwner) {
-                if (state.showKeyboardAutomatically) {
+                if (viewModel.showKeyboardAutomatically) {
                     focusRequester.requestFocus()
                     keyboard?.show()
                 }
 
-                state.restoreText()
+                viewModel.restoreText()
             }
         }
         lifecycle.addObserver(observer)
@@ -120,21 +102,21 @@ fun MessageCenter(
     }
 
     // set the web search default based on the profile's returned default
-    LaunchedEffect(state.getProfile()) {
-        val internetAccess = state.getProfile()?.internetAccess ?: return@LaunchedEffect
+    LaunchedEffect(viewModel.getProfile()) {
+        val internetAccess = viewModel.getProfile()?.internetAccess ?: return@LaunchedEffect
 
-        if (internetAccess != state.isSearchEnabled) {
-            state.toggleSearch()
+        if (internetAccess != uiState.isSearchEnabled) {
+            viewModel.toggleSearch()
         }
     }
 
-    if (state.showAttachmentSizeLimitWarning) {
+    if (uiState.showAttachmentSizeLimitWarning) {
         AlertDialog(
-            onDismissRequest = { state.dismissAttachmentSizeLimitWarning() },
+            onDismissRequest = { viewModel.dismissAttachmentSizeLimitWarning() },
             title = { Text("Attachment Limit Exceeded") },
             text = { Text("The total size of attachments cannot exceed 16 MB.") },
             confirmButton = {
-                TextButton(onClick = { state.dismissAttachmentSizeLimitWarning() }) {
+                TextButton(onClick = { viewModel.dismissAttachmentSizeLimitWarning() }) {
                     Text("OK")
                 }
             }
@@ -151,30 +133,30 @@ fun MessageCenter(
             .padding(bottom = 16.dp)
             .fillMaxWidth()
     ) {
-        if (state.attachmentUris.isNotEmpty()) {
+        if (uiState.attachmentUris.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .padding(8.dp)
                     .horizontalScroll(attachmentPreviewsScrollState),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                state.attachmentUris.forEach { uri ->
+                uiState.attachmentUris.forEach { uri ->
                     key(uri) {
                         AttachmentPreview(
                             uri = uri,
-                            onRemove = { uri -> state.removeAttachmentUri(uri) })
+                            onRemove = { uri -> viewModel.removeAttachmentUri(uri) })
                     }
                 }
             }
         }
         TextField(
-            value = text,
+            value = uiState.messageCenterText,
             onValueChange = {
-                if (it.length <= (state.getProfile()?.maxInputChars ?: 40000)) {
-                    state.onTextChanged(it)
+                if (it.length <= (viewModel.getProfile()?.maxInputChars ?: 40000)) {
+                    viewModel.onMessageCenterTextChanged(it)
                 }
             },
-            placeholder = { Text(if (isTemporaryChat) "Temporary chat" else "Ask Assistant") },
+            placeholder = { Text(if (uiState.isTemporaryChat) "Temporary chat" else "Ask Assistant") },
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f, fill = false)
@@ -202,17 +184,17 @@ fun MessageCenter(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    state.showAttachmentBottomSheet()
+                    viewModel.showAttachmentBottomSheet()
                 }, modifier = Modifier.size(64.dp)) {
                     Icon(Icons.Filled.Add, contentDescription = "Add attachment")
                 }
 
                 val backgroundColor by animateColorAsState(
-                    if (state.isSearchEnabled) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    if (uiState.isSearchEnabled) MaterialTheme.colorScheme.primary else Color.Transparent,
                     label = "Search button background"
                 )
                 val contentColor by animateColorAsState(
-                    if (state.isSearchEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                    if (uiState.isSearchEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                     label = "Search button content"
                 )
 
@@ -223,7 +205,7 @@ fun MessageCenter(
                         .clip(CircleShape)
                         .background(backgroundColor)
                         .clickable {
-                            state.toggleSearch()
+                            viewModel.toggleSearch()
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
                         .padding(horizontal = 8.dp),
@@ -235,7 +217,7 @@ fun MessageCenter(
                         contentDescription = "Toggle internet access",
                         tint = contentColor
                     )
-                    if (state.isSearchEnabled) {
+                    if (uiState.isSearchEnabled) {
                         Text("Internet", color = contentColor)
                     }
                 }
@@ -246,22 +228,22 @@ fun MessageCenter(
             ) {
                 OutlinedButton(
                     onClick = {
-                        state.openModelBottomSheet()
+                        viewModel.openModelBottomSheet()
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     },
                     contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
                     Text(
-                        text = state.getProfile()?.name?.replace("(preview)", "")?.trim()
+                        text = viewModel.getProfile()?.name?.replace("(preview)", "")?.trim()
                             ?: "Select a model",
                     )
                 }
                 FilledIconButton(
                     onClick = {
-                        state.sendMessage(threadId)
+                        viewModel.sendMessage(context)
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
-                    enabled = text.isNotBlank() || state.attachmentUris.isNotEmpty(),
+                    enabled = uiState.messageCenterText.isNotBlank() || uiState.attachmentUris.isNotEmpty(),
                     modifier = Modifier.size(56.dp),
                 ) {
                     Icon(Icons.Filled.Send, contentDescription = "Send message")
@@ -270,17 +252,17 @@ fun MessageCenter(
         }
     }
 
-    if (state.showModelBottomSheet) {
+    if (uiState.showModelBottomSheet) {
         ModelBottomSheet(
             assistantClient = assistantClient,
             coroutineScope = coroutineScope,
-            onDismissRequest = { state.dismissModelBottomSheet() }
+            onDismissRequest = { viewModel.dismissModelBottomSheet() }
         )
     }
 
-    if (state.showAttachmentBottomSheet) {
+    if (uiState.showAttachmentBottomSheet) {
         AttachmentBottomSheet(
-            onDismissRequest = { state.onDismissAttachmentBottomSheet() },
-            onAttachment = { state.addAttachmentUri(it) })
+            onDismissRequest = { viewModel.onDismissAttachmentBottomSheet() },
+            onAttachment = { viewModel.addAttachmentUri(context, it) })
     }
 }

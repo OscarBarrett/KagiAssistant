@@ -37,8 +37,6 @@ class LandingViewModel(
         return try {
             val qrRemoteSession = repository.getQrRemoteSession()
 
-            println("QR Remote Session: $qrRemoteSession")
-
 
             if (qrRemoteSession.isSuccess) {
                 val sessionDetails = qrRemoteSession.getOrNull()

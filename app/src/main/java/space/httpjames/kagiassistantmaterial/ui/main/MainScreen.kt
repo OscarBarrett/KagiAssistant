@@ -195,16 +195,8 @@ fun MainScreen(
                 MessageCenter(
                     threadId = uiState.currentThreadId,
                     assistantClient = assistantClient,
-                    threadMessages = uiState.threadMessages,
-                    setThreadMessages = { viewModel.setThreadMessages(it) },
-                    coroutineScope = scope,
-                    setCurrentThreadId = { viewModel.setCurrentThreadId(it) },
-                    text = uiState.messageCenterText,
-                    setText = { viewModel.setMessageCenterText(it) },
-                    editingMessageId = uiState.editingMessageId,
-                    setEditingMessageId = { viewModel.setEditingMessageId(it) },
-                    setCurrentThreadTitle = { viewModel.setCurrentThreadTitle(it) },
-                    isTemporaryChat = uiState.isTemporaryChat
+                    viewModel = viewModel,
+                    coroutineScope = scope
                 )
             }
         }
