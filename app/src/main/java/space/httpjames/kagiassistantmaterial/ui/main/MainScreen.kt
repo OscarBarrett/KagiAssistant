@@ -2,6 +2,7 @@ package space.httpjames.kagiassistantmaterial.ui.main
 
 import android.content.ClipData
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -19,7 +20,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -48,7 +52,8 @@ fun MainScreen(
     navController: NavController
 ) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("assistant_prefs", android.content.Context.MODE_PRIVATE)
+    val prefs =
+        context.getSharedPreferences("assistant_prefs", android.content.Context.MODE_PRIVATE)
     val cacheDir = context.cacheDir.absolutePath
 
     val viewModel: MainViewModel = viewModel(
@@ -79,9 +84,15 @@ fun MainScreen(
 
     val clipboard = LocalClipboard.current
 
-    BackHandler(enabled = drawerState.isOpen) {
+    var predictiveBackProgress by remember { mutableFloatStateOf(0f) }
+
+    PredictiveBackHandler(enabled = drawerState.isOpen) { backEvents ->
+        backEvents.collect { event ->
+            predictiveBackProgress = event.progress
+        }
         scope.launch {
             drawerState.close()
+            predictiveBackProgress = 0f
         }
     }
 
@@ -132,7 +143,8 @@ fun MainScreen(
                     scope.launch {
                         viewModel.fetchThreads()
                     }
-                }
+                },
+                predictiveBackProgress = predictiveBackProgress
             )
         }) {
         Scaffold(

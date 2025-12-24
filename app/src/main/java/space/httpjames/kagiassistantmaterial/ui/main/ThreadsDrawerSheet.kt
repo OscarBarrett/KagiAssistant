@@ -33,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +52,7 @@ fun ThreadsDrawerSheet(
     modifier: Modifier = Modifier,
     onSettingsClick: () -> Unit,
     onRetryClick: () -> Unit,
+    predictiveBackProgress: Float = 0f,
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
@@ -65,7 +68,20 @@ fun ThreadsDrawerSheet(
         }.filterValues { it.isNotEmpty() }
     }
 
-    ModalDrawerSheet(modifier = modifier) {
+    val density = LocalDensity.current
+    val drawerWidthDp = 360.dp
+
+    ModalDrawerSheet(
+        modifier = modifier.then(
+            Modifier.graphicsLayer {
+                // Translate drawer based on predictive back progress
+                // progress 0.0 = no translation (fully visible)
+                // progress 1.0 = fully translated off-screen
+                val drawerWidthPx = with(density) { drawerWidthDp.toPx() }
+                translationX = -drawerWidthPx * predictiveBackProgress
+            }
+        )
+    ) {
         SearchBar(
             modifier = Modifier
                 .fillMaxWidth()
