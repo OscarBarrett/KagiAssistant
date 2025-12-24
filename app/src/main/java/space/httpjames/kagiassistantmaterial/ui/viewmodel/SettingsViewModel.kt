@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import space.httpjames.kagiassistantmaterial.data.repository.AssistantRepository
 import space.httpjames.kagiassistantmaterial.ui.message.AssistantProfile
-import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import space.httpjames.kagiassistantmaterial.utils.DataFetchingState
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 
 /**
  * UI state for the Settings screen
@@ -39,15 +39,29 @@ class SettingsViewModel(
 
     private val _uiState = MutableStateFlow(
         SettingsUiState(
-            autoSpeakReplies = prefs.getBoolean(PreferenceKey.AUTO_SPEAK_REPLIES.key, PreferenceKey.DEFAULT_AUTO_SPEAK_REPLIES),
-            openKeyboardAutomatically = prefs.getBoolean(PreferenceKey.OPEN_KEYBOARD_AUTOMATICALLY.key, PreferenceKey.DEFAULT_OPEN_KEYBOARD_AUTOMATICALLY),
-            selectedAssistantModel = prefs.getString(PreferenceKey.ASSISTANT_MODEL.key, null) ?: PreferenceKey.DEFAULT_ASSISTANT_MODEL,
-            useMiniOverlay = prefs.getBoolean(PreferenceKey.USE_MINI_OVERLAY.key, PreferenceKey.DEFAULT_USE_MINI_OVERLAY)
+            autoSpeakReplies = prefs.getBoolean(
+                PreferenceKey.AUTO_SPEAK_REPLIES.key,
+                PreferenceKey.DEFAULT_AUTO_SPEAK_REPLIES
+            ),
+            openKeyboardAutomatically = prefs.getBoolean(
+                PreferenceKey.OPEN_KEYBOARD_AUTOMATICALLY.key,
+                PreferenceKey.DEFAULT_OPEN_KEYBOARD_AUTOMATICALLY
+            ),
+            selectedAssistantModel = prefs.getString(PreferenceKey.ASSISTANT_MODEL.key, null)
+                ?: PreferenceKey.DEFAULT_ASSISTANT_MODEL,
+            useMiniOverlay = prefs.getBoolean(
+                PreferenceKey.USE_MINI_OVERLAY.key,
+                PreferenceKey.DEFAULT_USE_MINI_OVERLAY
+            )
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
-    fun runInit() {
+    init {
+        fetchEmailAddress()
+    }
+
+    private fun fetchEmailAddress() {
         viewModelScope.launch {
             try {
                 _uiState.update { it.copy(emailAddressCallState = DataFetchingState.FETCHING) }

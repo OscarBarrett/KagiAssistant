@@ -193,6 +193,7 @@ class AssistantClient(
         )
         .add("accept", "application/vnd.kagi.stream")
         .add("cache-control", "no-cache")
+        .add("cookie", "kagi_session=${extractToken(sessionToken)}")
         .build()
 
     fun getSessionToken(): String {
@@ -541,7 +542,6 @@ class AssistantClient(
             .headers(baseHeaders.newBuilder().apply {
                 extraHeaders.forEach { (k, v) -> set(k, v) }
             }.build())
-            .header("cookie", "kagi_session=${getSessionToken()}")
 
         val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
         when (method.uppercase()) {

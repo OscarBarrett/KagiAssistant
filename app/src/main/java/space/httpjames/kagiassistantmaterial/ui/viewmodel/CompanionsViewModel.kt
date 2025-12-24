@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import space.httpjames.kagiassistantmaterial.KagiCompanion
 import space.httpjames.kagiassistantmaterial.data.repository.AssistantRepository
-import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import space.httpjames.kagiassistantmaterial.utils.DataFetchingState
+import space.httpjames.kagiassistantmaterial.utils.PreferenceKey
 import java.io.File
 
 /**
@@ -32,16 +32,16 @@ class CompanionsViewModel(
     private val prefs: SharedPreferences,
     private val cacheDir: String
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(CompanionsUiState())
     val uiState: StateFlow<CompanionsUiState> = _uiState.asStateFlow()
 
     init {
         // Initialize with currently selected companion
         _uiState.update { it.copy(selectedCompanion = getCurrentCompanion()) }
+        fetchCompanions()
     }
 
-    fun runInit() {
+    fun fetchCompanions() {
         viewModelScope.launch {
             _uiState.update { it.copy(companionsFetchingState = DataFetchingState.FETCHING) }
             try {
