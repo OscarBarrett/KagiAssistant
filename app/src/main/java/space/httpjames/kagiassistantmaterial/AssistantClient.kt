@@ -412,29 +412,21 @@ class AssistantClient(
     }
 
     /**
-     * Fetches a streaming response, returning a Flow of StreamChunk.
-     * The flow is collected on the IO dispatcher and can be consumed on any dispatcher.
+     * Performs a streaming HTTP request and returns a Flow of StreamChunk.
+     * This helper handles the common streaming lifecycle: request execution,
+     * response validation, streaming chunks, and completion signaling.
      */
-    fun fetchStream(
+    private fun performStreamingRequest(
         streamId: String,
-        url: String,
-        body: String? = null,
-        method: String = "POST",
-        extraHeaders: Map<String, String> = emptyMap(),
+        request: Request,
     ): Flow<StreamChunk> = flow {
-        val request = buildRequest(url, method, body, extraHeaders)
-
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                response.close()
-                throw IOException("HTTP error ${response.code} from ${request.url}")
+                throw IOException("HTTP error ${response.code}: ${response.message}")
             }
 
             val source = response.body?.source()
-            if (source == null) {
-                response.close()
-                throw IOException("Empty response body from ${request.url}")
-            }
+                ?: throw IOException("Empty response body from ${request.url}")
 
             try {
                 streamLoop(streamId, source).collect { chunk ->
@@ -447,12 +439,29 @@ class AssistantClient(
         }
     }.flowOn(Dispatchers.IO)
 
-    fun sendMultipartRequest(
+    /**
+     * Fetches a streaming response, returning a Flow of StreamChunk.
+     * The flow is collected on the IO dispatcher and can be consumed on any dispatcher.
+     */
+    fun fetchStream(
         streamId: String,
+        url: String,
+        body: String? = null,
+        method: String = "POST",
+        extraHeaders: Map<String, String> = emptyMap(),
+    ): Flow<StreamChunk> {
+        val request = buildRequest(url, method, body, extraHeaders)
+        return performStreamingRequest(streamId, request)
+    }
+
+    /**
+     * Builds a multipart request for file uploads with the given KagiPromptRequest.
+     */
+    private fun buildMultipartRequest(
         url: String,
         requestBody: KagiPromptRequest,
         files: List<MultipartAssistantPromptFile>,
-    ): Flow<StreamChunk> = flow<StreamChunk> {
+    ): Request {
         val stateJson = json.encodeToString(KagiPromptRequest.serializer(), requestBody)
         val builder = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("state", stateJson)
@@ -476,34 +485,22 @@ class AssistantClient(
             }
         }
 
-        val request = Request.Builder()
+        return Request.Builder()
             .url(url)
             .headers(baseHeaders)
             .post(builder.build())
             .build()
+    }
 
-        okHttpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                response.close()
-                throw IOException("HTTP error ${response.code} from ${request.url}")
-            }
-
-            val source = response.body?.source()
-            if (source == null) {
-                response.close()
-                throw IOException("Empty response body from ${request.url}")
-            }
-
-            try {
-                streamLoop(streamId, source).collect { chunk ->
-                    emit(chunk)
-                }
-                emit(StreamChunk(streamId, "", "", true))
-            } finally {
-                response.close()
-            }
-        }
-    }.flowOn(Dispatchers.IO)
+    fun sendMultipartRequest(
+        streamId: String,
+        url: String,
+        requestBody: KagiPromptRequest,
+        files: List<MultipartAssistantPromptFile>,
+    ): Flow<StreamChunk> {
+        val request = buildMultipartRequest(url, requestBody, files)
+        return performStreamingRequest(streamId, request)
+    }
 
     private suspend fun streamLoop(
         streamId: String,
