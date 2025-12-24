@@ -66,7 +66,8 @@ fun SettingsScreen(
     navController: NavController,
 ) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("assistant_prefs", android.content.Context.MODE_PRIVATE)
+    val prefs =
+        context.getSharedPreferences("assistant_prefs", android.content.Context.MODE_PRIVATE)
     val cacheDir = context.cacheDir.absolutePath
 
     val viewModel: SettingsViewModel = viewModel(
@@ -294,11 +295,8 @@ fun SettingsScreen(
                     iconTint = MaterialTheme.colorScheme.onErrorContainer,
                     onClick = {
                         coroutineScope.launch {
-                            val loggedOut = assistantClient.deleteSession()
-                            if (loggedOut) {
-                                viewModel.clearAllPrefs()
-                                navController.navigate(Screens.LANDING.route)
-                            }
+                            viewModel.logout()
+                            navController.navigate(Screens.LANDING.route)
                         }
                     }
                 )

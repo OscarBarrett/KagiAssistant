@@ -108,6 +108,13 @@ class SettingsViewModel(
         }
     }
 
+    fun logout() {
+        viewModelScope.launch {
+            if (repository.deleteSession())
+                clearAllPrefs()
+        }
+    }
+
     fun toggleOpenKeyboardAutomatically() {
         val newValue = !_uiState.value.openKeyboardAutomatically
         _uiState.update { it.copy(openKeyboardAutomatically = newValue) }
