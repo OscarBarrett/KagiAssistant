@@ -80,6 +80,8 @@ data class MessageCenterUiState(
     val showAttachmentSizeLimitWarning: Boolean = false
 )
 
+const val STATE_UPDATE_THROTTLE_MS = 32
+
 /**
  * ViewModel for the Main screen.
  * Manages thread, message, and message center state using separate StateFlows.
@@ -282,19 +284,11 @@ class MainViewModel(
         _messagesState.update { it.copy(currentThreadTitle = title) }
     }
 
-    fun setThreadMessages(messages: List<AssistantThreadMessage>) {
-        _messagesState.update { it.copy(messages = messages) }
-    }
-
     fun setCurrentThreadId(id: String?) {
         _threadsState.update { it.copy(currentThreadId = id) }
     }
 
     fun getEditingMessageId(): String? = _messagesState.value.editingMessageId
-    fun getThreadMessages(): List<AssistantThreadMessage> = _messagesState.value.messages
-    fun getCurrentThreadId(): String? = _threadsState.value.currentThreadId
-    fun getIsTemporaryChat(): Boolean = _messagesState.value.isTemporaryChat
-    fun getCurrentThreadTitle(): String? = _messagesState.value.currentThreadTitle
 
     // ========== MessageCenter functions ==========
 
@@ -391,24 +385,27 @@ class MainViewModel(
 
     fun sendMessage(context: Context) {
         var messageId = UUID.randomUUID().toString()
-        _messagesState.update { it.copy(inProgressAssistantMessageId = "$messageId.reply") }
+        val inProgressId = "$messageId.reply"
+        _messagesState.update { it.copy(inProgressAssistantMessageId = inProgressId) }
 
-        // Local accumulator - the source of truth during streaming
-        var localMessages = _messagesState.value.messages
+        // Use MutableList for O(1) index-based updates during streaming
+        val localMessages = _messagesState.value.messages.toMutableList()
 
         val assistantMessages = localMessages.filter { it.role == AssistantThreadMessageRole.USER }
-        val latestAssistantMessageId = assistantMessages.takeLast(1).firstOrNull()?.id
-        val branchIdContext = localMessages.takeLast(1).firstOrNull()?.branchIds ?: emptyList()
+        val latestAssistantMessageId = assistantMessages.lastOrNull()?.id
+        val lastMessage = localMessages.lastOrNull()
+        val branchIdContext = lastMessage?.branchIds ?: emptyList()
 
-        // Add user message
-        localMessages = localMessages + AssistantThreadMessage(
+        // Add user message and assistant message
+        localMessages += AssistantThreadMessage(
             id = messageId,
             content = _messageCenterState.value.text,
             role = AssistantThreadMessageRole.USER,
             citations = emptyList(),
             branchIds = branchIdContext,
-        ) + AssistantThreadMessage(
-            id = _messagesState.value.inProgressAssistantMessageId!!,
+        )
+        localMessages += AssistantThreadMessage(
+            id = inProgressId,
             content = "",
             role = AssistantThreadMessageRole.ASSISTANT,
             citations = emptyList(),
@@ -416,14 +413,13 @@ class MainViewModel(
             markdownContent = "",
             metadata = emptyMap(),
         )
-        _messagesState.update { it.copy(messages = localMessages) }
+        _messagesState.update { it.copy(messages = localMessages.toList()) }
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val streamId = UUID.randomUUID().toString()
-            var lastTokenUpdateTime = 0L
+            var lastStateUpdateTime = 0L
 
-            // branch lineage is determined as: last message ID's branch ID
-            val branchId = localMessages.takeLast(1).firstOrNull()?.branchIds?.lastOrNull()
+            val branchId = localMessages.lastOrNull()?.branchIds?.lastOrNull()
 
             val focus = KagiPromptRequestFocus(
                 _threadsState.value.currentThreadId,
@@ -465,20 +461,42 @@ class MainViewModel(
 
             setEditingMessageId(null)
 
-            // Use Kotlinx Serialization to encode request
-            val jsonString = Json.encodeToString(KagiPromptRequest.serializer(), requestBody)
+            val jsonString =
+                Json.encodeToString(KagiPromptRequest.serializer(), requestBody)
 
-            fun onChunk(chunk: StreamChunk) {
-                if (chunk.done) {
-                    // set finishedGenerating to true
-                    localMessages = localMessages.map {
-                        if (it.id == _messagesState.value.inProgressAssistantMessageId) {
-                            it.copy(finishedGenerating = true)
-                        } else {
-                            it
-                        }
+            // Track current in-progress ID for efficient lookup
+            var currentInProgressId = inProgressId
+
+            // Helper: update message by ID (O(N) find + O(1) update)
+            fun updateMessageById(
+                targetId: String,
+                update: (AssistantThreadMessage) -> AssistantThreadMessage
+            ) {
+                // check the last element first since it's the most likely target
+                val lastIndex = localMessages.lastIndex
+                if (lastIndex != -1 && localMessages[lastIndex].id == targetId) {
+                    localMessages[lastIndex] = update(localMessages[lastIndex])
+                    return
+                }
+                val index = localMessages.indexOfFirst { it.id == targetId }
+                if (index != -1) {
+                    localMessages[index] = update(localMessages[index])
+                }
+            }
+
+            // Helper: throttled state update
+            suspend fun maybeUpdateState(force: Boolean = false) {
+                val currentTime = System.currentTimeMillis()
+                if (force || currentTime - lastStateUpdateTime >= STATE_UPDATE_THROTTLE_MS) {
+                    lastStateUpdateTime = currentTime
+                    withContext(Dispatchers.Main) {
+                        _messagesState.update { it.copy(messages = localMessages.toList()) }
+                        onTokenReceived()
                     }
                 }
+            }
+
+            suspend fun onChunk(chunk: StreamChunk) {
                 when (chunk.header) {
                     "thread.json" -> {
                         val json = Json.parseToJsonElement(chunk.data)
@@ -492,13 +510,10 @@ class MainViewModel(
                         val json = Json.parseToJsonElement(chunk.data)
                         val newBranchId = json.jsonObject["branch_id"]?.jsonPrimitive?.contentOrNull
                         if (newBranchId != null) {
-                            // update the inProgressAssistant message with the new branch ID by appending if it doesn't already have it
-                            localMessages = localMessages.map {
-                                if (it.id == _messagesState.value.inProgressAssistantMessageId && newBranchId !in it.branchIds) {
-                                    it.copy(branchIds = it.branchIds + newBranchId)
-                                } else {
-                                    it
-                                }
+                            updateMessageById(currentInProgressId) { msg ->
+                                if (newBranchId !in msg.branchIds) {
+                                    msg.copy(branchIds = msg.branchIds + newBranchId)
+                                } else msg
                             }
                         }
                     }
@@ -506,34 +521,33 @@ class MainViewModel(
                     "new_message.json" -> {
                         val dto = Json.parseToJsonElement(chunk.data).toObject<MessageDto>()
 
-                        // update the local message (which will have the old id) with the new id
-                        localMessages = localMessages.map {
-                            if (it.id == messageId) it.copy(id = dto.id) else it
-                        }
+                        // Update user message ID
+                        updateMessageById(messageId) { it.copy(id = dto.id) }
 
-                        val newInProgressId = dto.id + ".reply"
-                        _messagesState.update { it.copy(inProgressAssistantMessageId = newInProgressId) }
+                        val newInProgressId = "${dto.id}.reply"
+                        currentInProgressId = newInProgressId
 
-                        localMessages = localMessages.map {
-                            if (it.id == "$messageId.reply") it.copy(id = newInProgressId) else it
-                        }
+                        // Update old in-progress message ID
+                        updateMessageById(inProgressId) { it.copy(id = newInProgressId) }
 
                         messageId = dto.id
 
                         val preparedCitations = parseReferencesHtml(dto.references_html)
 
-                        // Update local accumulator
-                        localMessages =
-                            localMessages.map {
-                                if (it.id == newInProgressId) it.copy(
-                                    content = dto.reply,
-                                    citations = preparedCitations,
-                                    markdownContent = dto.md,
-                                    metadata = parseMetadata(dto.metadata)
-                                ) else it
-                            }
+                        // Update assistant message with initial content
+                        updateMessageById(newInProgressId) { msg ->
+                            msg.copy(
+                                content = dto.reply,
+                                citations = preparedCitations,
+                                markdownContent = dto.md,
+                                metadata = parseMetadata(dto.metadata)
+                            )
+                        }
 
-                        _messagesState.update { it.copy(messages = localMessages) }
+                        withContext(Dispatchers.Main) {
+                            _messagesState.update { it.copy(inProgressAssistantMessageId = newInProgressId) }
+                        }
+                        maybeUpdateState(force = true)
                     }
 
                     "tokens.json" -> {
@@ -542,53 +556,63 @@ class MainViewModel(
                         val newText = obj["text"]?.jsonPrimitive?.contentOrNull ?: ""
                         val incomingId = obj["id"]?.jsonPrimitive?.contentOrNull ?: ""
 
-                        // Always update local accumulator immediately
-                        localMessages = localMessages.map {
-                            if (it.id == "$incomingId.reply") it.copy(content = newText)
-                            else it
-                        }
+                        // O(1) update by finding index once
+                        val targetId = "$incomingId.reply"
+                        updateMessageById(targetId) { it.copy(content = newText) }
 
-                        _messagesState.update { it.copy(messages = localMessages) }
-                        onTokenReceived()
+                        maybeUpdateState()
                     }
+                }
+
+                if (chunk.done) {
+                    // Mark in-progress message as finished
+                    updateMessageById(currentInProgressId) { it.copy(finishedGenerating = true) }
                 }
             }
 
             if (_messageCenterState.value.attachmentUris.isNotEmpty()) {
-                val files = mutableListOf<MultipartAssistantPromptFile>()
+                // Move file operations to IO thread
+                val files = withContext(Dispatchers.IO) {
+                    _messageCenterState.value.attachmentUris.mapNotNull { uriStr ->
+                        try {
+                            val uri = uriStr.toUri()
+                            val fileName = context.getFileName(uri) ?: return@mapNotNull null
+                            val file =
+                                uri.copyToTempFile(context, "." + fileName.substringAfterLast("."))
+                            val thumbnail =
+                                if (fileName.endsWith(".webp") || fileName.endsWith(".jpg") || fileName.endsWith(
+                                        ".png"
+                                    )
+                                ) {
+                                    file.to84x84ThumbFile()
+                                } else null
 
-                for (uriStr in _messageCenterState.value.attachmentUris) {
-                    val uri = uriStr.toUri()
-                    val fileName = context.getFileName(uri) ?: "Unknown"
-                    val file = uri.copyToTempFile(context, "." + fileName.substringAfterLast("."))
-                    val thumbnail =
-                        if (fileName.endsWith(".webp") || fileName.endsWith(".jpg") || fileName.endsWith(
-                                ".png"
+                            MultipartAssistantPromptFile(
+                                file,
+                                thumbnail,
+                                context.contentResolver.getType(uri) ?: "application/octet-stream"
                             )
-                        ) {
-                            file.to84x84ThumbFile()
-                        } else null
-                    var promptFile = MultipartAssistantPromptFile(
-                        file,
-                        thumbnail,
-                        context.contentResolver.getType(uri) ?: "application/octet-stream"
-                    )
-                    files += promptFile
-
-                    // update the user message to have the document
-                    localMessages = localMessages.map {
-                        if (it.id == messageId) {
-                            it.copy(
-                                documents = it.documents + AssistantThreadMessageDocument(
-                                    id = UUID.randomUUID().toString(),
-                                    name = fileName,
-                                    mime = promptFile.mime,
-                                    data = if (thumbnail != null) BitmapFactory.decodeFile(thumbnail.absolutePath) else null,
-                                )
-                            )
-                        } else {
-                            it
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            null
                         }
+                    }
+                }
+
+                // Update messages with document info
+                files.forEach { promptFile ->
+                    updateMessageById(messageId) { msg ->
+                        val fileName = promptFile.file.name
+                        msg.copy(
+                            documents = msg.documents + AssistantThreadMessageDocument(
+                                id = UUID.randomUUID().toString(),
+                                name = fileName,
+                                mime = promptFile.mime,
+                                data =
+                                    promptFile.thumbnail?.let { BitmapFactory.decodeFile(it.absolutePath) }
+
+                            )
+                        )
                     }
                 }
 
@@ -618,11 +642,11 @@ class MainViewModel(
                 }
             }
 
-            // Final sync to catch any remaining updates
+            // Final sync to StateFlow
             withContext(Dispatchers.Main) {
                 _messagesState.update {
                     it.copy(
-                        messages = localMessages,
+                        messages = localMessages.toList(),
                         inProgressAssistantMessageId = null
                     )
                 }

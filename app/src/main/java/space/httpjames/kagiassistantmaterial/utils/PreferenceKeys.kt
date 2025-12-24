@@ -15,8 +15,8 @@ enum class PreferenceKey(val key: String) {
 
     companion object {
         const val DEFAULT_ASSISTANT_MODEL = "gemini-2-5-flash-lite"
-        const val DEFAULT_SESSION_TOKEN =
-            "" // this will never be filled. but it's there for graceful error handling (and maybe some dangerous debugging
+        val DEFAULT_SESSION_TOKEN =
+            null // this will never be filled. but it's there for graceful error handling (and maybe some dangerous debugging
         const val DEFAULT_SAVED_TEXT = ""
         const val DEFAULT_RECENTLY_USED_PROFILES = "[]"
         const val DEFAULT_USE_MINI_OVERLAY = true

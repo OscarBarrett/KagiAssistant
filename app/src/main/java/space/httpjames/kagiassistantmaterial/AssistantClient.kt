@@ -170,7 +170,6 @@ private class SimpleCookieJar : CookieJar {
 
 class AssistantClient(
     private val sessionToken: String,
-    private val okHttpClient: OkHttpClient = createDefaultClient(),
     private val json: Json = JsonLenient
 ) {
     private val cookieJar = SimpleCookieJar().apply {
@@ -184,6 +183,8 @@ class AssistantClient(
         )
     }
 
+    private val okHttpClient: OkHttpClient = createDefaultClient(cookieJar)
+
     private val baseHeaders = Headers.Builder()
         .add("origin", "https://kagi.com")
         .add("referer", "https://kagi.com/assistant")
@@ -193,7 +194,6 @@ class AssistantClient(
         )
         .add("accept", "application/vnd.kagi.stream")
         .add("cache-control", "no-cache")
-        .add("cookie", "kagi_session=${extractToken(sessionToken)}")
         .build()
 
     fun getSessionToken(): String {
@@ -277,21 +277,16 @@ class AssistantClient(
                 ?: return Result.failure(Exception("Empty body"))
             if (responseBody != "OK") return Result.failure(Exception("Not authorized yet"))
 
-            // Use CookieJar to get the session cookie
-            val sessionCookie = cookieJar.getCookieValue(request.url, "kagi_session")
-            return if (sessionCookie != null) {
-                Result.success(sessionCookie)
-            } else {
-                // Fallback to manual parsing for Set-Cookie headers
-                val cookies: List<String> = response.headers.values("Set-Cookie")
-                for (cookie in cookies) {
-                    if (cookie.startsWith("kagi_session=")) {
-                        val cookieValue = cookie.substringBefore(';').trim()
-                        return Result.success(cookieValue.replace("kagi_session=", ""))
-                    }
+            // Fallback to manual parsing for Set-Cookie headers
+            val cookies: List<String> = response.headers.values("Set-Cookie")
+            for (cookie in cookies) {
+                if (cookie.startsWith("kagi_session=")) {
+                    val cookieValue = cookie.substringBefore(';').trim()
+                    return Result.success(cookieValue.replace("kagi_session=", ""))
                 }
-                Result.failure(Exception("Failed to extract session cookie"))
             }
+            return Result.failure(Exception("Failed to extract session cookie"))
+
         }
     }
 
@@ -555,11 +550,11 @@ class AssistantClient(
     }
 
     companion object {
-        private fun createDefaultClient(): OkHttpClient {
+        private fun createDefaultClient(jar: CookieJar): OkHttpClient {
             return OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.SECONDS) // allow indefinite streaming
-                .cookieJar(SimpleCookieJar())
+                .cookieJar(jar)
                 .build()
         }
 
