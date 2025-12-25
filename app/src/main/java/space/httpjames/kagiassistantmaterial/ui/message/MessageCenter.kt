@@ -57,7 +57,6 @@ import space.httpjames.kagiassistantmaterial.AssistantClient
 import space.httpjames.kagiassistantmaterial.ui.chat.cleanup.ChatCleanupManager
 import space.httpjames.kagiassistantmaterial.ui.main.ModelBottomSheet
 import space.httpjames.kagiassistantmaterial.ui.viewmodel.MainViewModel
-import space.httpjames.kagiassistantmaterial.ui.viewmodel.MessageCenterUiState
 
 @Composable
 fun MessageCenter(
@@ -268,6 +267,8 @@ fun MessageCenter(
     if (messageCenterState.showAttachmentBottomSheet) {
         AttachmentBottomSheet(
             onDismissRequest = { viewModel.onDismissAttachmentBottomSheet() },
-            onAttachment = { viewModel.addAttachmentUri(context, it) })
+            onAttachment = { viewModel.addAttachmentUri(context, it) },
+            isTemporaryChat = messagesState.isTemporaryChat,
+        )
     }
 }

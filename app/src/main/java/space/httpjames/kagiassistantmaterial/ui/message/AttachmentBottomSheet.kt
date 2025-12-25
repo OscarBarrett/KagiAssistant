@@ -1,7 +1,9 @@
 package space.httpjames.kagiassistantmaterial.ui.message
 
+import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,6 +39,7 @@ import java.io.File
 fun AttachmentBottomSheet(
     onDismissRequest: () -> Unit,
     onAttachment: (uri: String) -> Unit,
+    isTemporaryChat: Boolean,
 ) {
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false,
@@ -57,7 +60,8 @@ fun AttachmentBottomSheet(
                 onSnap = {
                     onAttachment(it)
                     onDismissRequest()
-                }
+                },
+                isTemporaryChat = isTemporaryChat
             )
             AttachGalleryButton(
                 onSelected = {
@@ -74,7 +78,8 @@ fun AttachmentBottomSheet(
 
 @Composable
 fun AttachCameraButton(
-    onSnap: (photoUri: String) -> Unit = {}
+    onSnap: (photoUri: String) -> Unit = {},
+    isTemporaryChat: Boolean,
 ) {
     val context = LocalContext.current
     val photoUri = remember { createTempImageUri(context) }
@@ -82,11 +87,10 @@ fun AttachCameraButton(
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             if (success) {
-//            capturedBitmap.value = MediaStore.Images.Media.getBitmap(context.contentResolver, photoUri)
+                if (!isTemporaryChat) saveToGallery(context, photoUri)
                 onSnap(photoUri.toString())
             }
         }
-
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         FilledIconButton(onClick = {
@@ -115,6 +119,34 @@ private fun createTempImageUri(context: Context): Uri {
         "${context.packageName}.provider",
         tempFile
     )
+}
+
+private fun saveToGallery(context: Context, sourceUri: Uri) {
+    val contentResolver = context.contentResolver
+
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Images.Media.DISPLAY_NAME, "KAGI_${System.currentTimeMillis()}.webp")
+        put(MediaStore.Images.Media.MIME_TYPE, "image/webp")
+        put(MediaStore.Images.Media.IS_PENDING, 1)
+    }
+
+    val collection =
+        MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+
+    val imageUri = contentResolver.insert(collection, contentValues)
+
+    imageUri?.let {
+        contentResolver.openOutputStream(it)?.use { output ->
+            contentResolver.openInputStream(sourceUri)?.use { input ->
+                input.copyTo(output)
+            }
+        }
+
+
+        contentValues.clear()
+        contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+        contentResolver.update(it, contentValues, null, null)
+    }
 }
 
 
