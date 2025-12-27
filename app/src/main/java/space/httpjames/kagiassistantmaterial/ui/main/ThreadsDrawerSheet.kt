@@ -33,9 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,6 +53,7 @@ fun ThreadsDrawerSheet(
     onSettingsClick: () -> Unit,
     onRetryClick: () -> Unit,
     predictiveBackProgress: Float = 0f,
+    currentThreadId: String?,
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
@@ -99,7 +100,8 @@ fun ThreadsDrawerSheet(
                 onItemClick = { threadId ->
                     onThreadSelected(threadId)
                     active = false
-                }
+                },
+                currentThreadId = currentThreadId
             )
         }
 
@@ -124,7 +126,8 @@ fun ThreadsDrawerSheet(
 
                     else -> ThreadList(
                         threads = filteredThreads,
-                        onItemClick = onThreadSelected
+                        onItemClick = onThreadSelected,
+                        currentThreadId = currentThreadId
                     )
                 }
 
@@ -151,7 +154,8 @@ fun ThreadsDrawerSheet(
 @Composable
 private fun ThreadList(
     threads: Map<String, List<AssistantThread>>,
-    onItemClick: (String) -> Unit
+    onItemClick: (String) -> Unit,
+    currentThreadId: String?,
 ) {
     LazyColumn {
         threads.entries.forEachIndexed { index, (category, threadList) ->
@@ -200,7 +204,7 @@ private fun ThreadList(
                             )
                         }
                     },
-                    selected = false,
+                    selected = thread.id == currentThreadId,
                     onClick = { onItemClick(thread.id) },
                     shape = RectangleShape
                 )

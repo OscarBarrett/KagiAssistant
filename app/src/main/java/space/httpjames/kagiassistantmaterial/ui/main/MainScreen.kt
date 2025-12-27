@@ -161,7 +161,8 @@ fun MainScreen(
                         viewModel.fetchThreads()
                     }
                 },
-                predictiveBackProgress = predictiveBackProgress
+                predictiveBackProgress = predictiveBackProgress,
+                currentThreadId = threadsState.currentThreadId,
             )
         }) {
         Scaffold(
