@@ -188,6 +188,9 @@ class MainViewModel(
     }
 
     fun onThreadSelected(threadId: String) {
+        if (threadId != _threadsState.value.currentThreadId) {
+            _messagesState.update { it.copy(isTemporaryChat = false) }
+        }
         _threadsState.update {
             it.copy(
                 currentThreadId = threadId
