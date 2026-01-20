@@ -10,6 +10,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,6 +70,16 @@ data class MessagesUiState(
     val inProgressAssistantMessageId: String? = null
 )
 
+private data class ThreadSession(
+    val threadId: String?,
+    val messages: MutableList<AssistantThreadMessage> = mutableListOf(),
+    val currentThreadTitle: String? = null,
+    val callState: DataFetchingState = DataFetchingState.OK,
+    val isTemporaryChat: Boolean = false,
+    val inProgressAssistantMessageId: String? = null,
+    val streamingJob: Job? = null
+)
+
 /**
  * UI state for MessageCenter component
  */
@@ -98,9 +109,15 @@ class MainViewModel(
     private val _threadsState = MutableStateFlow(ThreadsUiState())
     val threadsState: StateFlow<ThreadsUiState> = _threadsState.asStateFlow()
 
+    // Per-thread sessions
+    private val threadSessions = mutableMapOf<String, ThreadSession>()
+
     // Messages state
     private val _messagesState = MutableStateFlow(MessagesUiState())
     val messagesState: StateFlow<MessagesUiState> = _messagesState.asStateFlow()
+
+    private val _generatingThreadsState = MutableStateFlow<Set<String>>(emptySet())
+    val generatingThreadsState: StateFlow<Set<String>> = _generatingThreadsState.asStateFlow()
 
     // MessageCenter state
     private val _messageCenterState = MutableStateFlow(MessageCenterUiState())
@@ -137,6 +154,11 @@ class MainViewModel(
             val threadId = _threadsState.value.currentThreadId ?: return@launch
             val result = repository.deleteChat(threadId)
             if (result.isSuccess) {
+                threadSessions.entries.firstOrNull { it.value.threadId == threadId }?.let { entry ->
+                    entry.value.streamingJob?.cancel()
+                    threadSessions.remove(entry.key)
+                    updateGeneratingThreadsState()
+                }
                 newChat()
             } else {
                 result.exceptionOrNull()?.printStackTrace()
@@ -145,28 +167,29 @@ class MainViewModel(
     }
 
     fun newChat() {
-        if (_messagesState.value.isTemporaryChat) {
-            _messagesState.update { it.copy(isTemporaryChat = false) }
+        val currentSession = currentSessionKey?.let { threadSessions[it] }
+        if (currentSession?.isTemporaryChat == true) {
+            updateSession(currentSessionKey) { it.copy(isTemporaryChat = false) }
             deleteChat()
             return
         }
-        _messagesState.update {
-            it.copy(
-                editingMessageId = null,
-                messages = emptyList(),
-                currentThreadTitle = null
-            )
-        }
+        val tempId = "temp:${UUID.randomUUID()}"
+        threadSessions[tempId] = ThreadSession(threadId = null)
+        updateGeneratingThreadsState()
+        setActiveSession(tempId)
         _threadsState.update { it.copy(currentThreadId = null) }
         prefs.edit().remove(PreferenceKey.SAVED_THREAD_ID.key).apply()
     }
 
     fun toggleIsTemporaryChat() {
-        _messagesState.update { it.copy(isTemporaryChat = !it.isTemporaryChat) }
+        updateSession(currentSessionKey) { session ->
+            session.copy(isTemporaryChat = !session.isTemporaryChat)
+        }
     }
 
     fun editMessage(messageId: String) {
-        val currentMessages = _messagesState.value.messages
+        val sessionKey = currentSessionKey
+        val currentMessages = sessionKey?.let { threadSessions[it]?.messages } ?: _messagesState.value.messages
         val index = currentMessages.indexOfFirst { it.id == messageId }
 
         if (index != -1) {
@@ -175,6 +198,11 @@ class MainViewModel(
                 newChat()
                 _messageCenterState.update { it.copy(text = oldContent) }
                 return
+            }
+
+            if (sessionKey != null) {
+                val trimmedMessages = currentMessages.subList(0, index).toMutableList()
+                updateSession(sessionKey) { it.copy(messages = trimmedMessages) }
             }
 
             _messagesState.update {
@@ -188,20 +216,20 @@ class MainViewModel(
     }
 
     fun onThreadSelected(threadId: String) {
-        if (threadId != _threadsState.value.currentThreadId) {
-            _messagesState.update { it.copy(isTemporaryChat = false) }
+        val existingKey = threadSessions.entries.firstOrNull { it.value.threadId == threadId }?.key
+        if (existingKey != null) {
+            setActiveSession(existingKey)
+            prefs.edit().putString(PreferenceKey.SAVED_THREAD_ID.key, threadId).apply()
+            return
         }
-        _threadsState.update {
-            it.copy(
-                currentThreadId = threadId
-            )
-        }
-        _messagesState.update { it.copy(currentThreadTitle = null) }
+
+        val sessionKey = threadId
+        threadSessions[sessionKey] = ThreadSession(threadId = threadId, callState = DataFetchingState.FETCHING)
+        setActiveSession(sessionKey)
         prefs.edit().putString(PreferenceKey.SAVED_THREAD_ID.key, threadId).apply()
 
         viewModelScope.launch {
             try {
-                _messagesState.update { it.copy(callState = DataFetchingState.FETCHING) }
                 repository.fetchStream(
                     url = "https://kagi.com/assistant/thread_open",
                     method = "POST",
@@ -212,8 +240,7 @@ class MainViewModel(
                         "thread.json" -> {
                             val thread = Json.parseToJsonElement(chunk.data)
                             val title = thread.jsonObject["title"]?.jsonPrimitive?.content
-                            _threadsState.update { it.copy(currentThreadId = threadId) }
-                            _messagesState.update { it.copy(currentThreadTitle = title) }
+                            updateSession(sessionKey) { it.copy(currentThreadTitle = title) }
                         }
 
                         "messages.json" -> {
@@ -255,9 +282,9 @@ class MainViewModel(
                                     )
                                 )
                             }
-                            _messagesState.update {
+                            updateSession(sessionKey) {
                                 it.copy(
-                                    messages = messages,
+                                    messages = messages.toMutableList(),
                                     callState = DataFetchingState.OK
                                 )
                             }
@@ -266,7 +293,7 @@ class MainViewModel(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _messagesState.update { it.copy(callState = DataFetchingState.ERRORED) }
+                updateSession(sessionKey) { it.copy(callState = DataFetchingState.ERRORED) }
             }
         }
     }
@@ -275,6 +302,8 @@ class MainViewModel(
         val savedId = prefs.getString(PreferenceKey.SAVED_THREAD_ID.key, null)
         if (savedId != null && savedId != _threadsState.value.currentThreadId) {
             onThreadSelected(savedId)
+        } else if (activeSessionKey == null && threadSessions.isNotEmpty()) {
+            setActiveSession(threadSessions.keys.first())
         }
     }
 
@@ -284,15 +313,84 @@ class MainViewModel(
         _messagesState.update { it.copy(editingMessageId = id) }
     }
 
-    fun setCurrentThreadTitle(title: String) {
-        _messagesState.update { it.copy(currentThreadTitle = title) }
+    private var activeSessionKey: String? = null
+
+    private val currentSessionKey: String?
+        get() = activeSessionKey
+
+    private fun setActiveSession(sessionKey: String) {
+        val session = threadSessions[sessionKey] ?: return
+        activeSessionKey = sessionKey
+        val threadId = session.threadId
+        _threadsState.update { it.copy(currentThreadId = threadId) }
+        _messagesState.update {
+            it.copy(
+                messages = session.messages.toList(),
+                currentThreadTitle = session.currentThreadTitle,
+                callState = session.callState,
+                isTemporaryChat = session.isTemporaryChat,
+                inProgressAssistantMessageId = session.inProgressAssistantMessageId
+            )
+        }
     }
 
-    fun setCurrentThreadId(id: String?) {
+    private fun updateMessagesStateFromSession(sessionKey: String) {
+        if (activeSessionKey != sessionKey) {
+            return
+        }
+        val session = threadSessions[sessionKey] ?: return
+        _messagesState.update {
+            it.copy(
+                messages = session.messages.toList(),
+                currentThreadTitle = session.currentThreadTitle,
+                callState = session.callState,
+                isTemporaryChat = session.isTemporaryChat,
+                inProgressAssistantMessageId = session.inProgressAssistantMessageId
+            )
+        }
+    }
+
+    private fun updateSession(sessionKey: String?, update: (ThreadSession) -> ThreadSession) {
+        if (sessionKey == null) return
+        val session = threadSessions[sessionKey] ?: return
+        threadSessions[sessionKey] = update(session)
+        updateMessagesStateFromSession(sessionKey)
+        updateGeneratingThreadsState()
+    }
+
+    private fun migrateSession(oldKey: String, newThreadId: String): String {
+        val session = threadSessions[oldKey] ?: return oldKey
+        threadSessions.remove(oldKey)
+        threadSessions[newThreadId] = session.copy(threadId = newThreadId)
+        updateGeneratingThreadsState()
+        if (activeSessionKey == oldKey) {
+            setActiveSession(newThreadId)
+        }
+        return newThreadId
+    }
+
+    private fun setCurrentThreadTitle(title: String) {
+        updateSession(currentSessionKey) { it.copy(currentThreadTitle = title) }
+        if (currentSessionKey != null) {
+            _messagesState.update { it.copy(currentThreadTitle = title) }
+        }
+    }
+
+    private fun setCurrentThreadId(id: String?) {
         _threadsState.update { it.copy(currentThreadId = id) }
+        if (currentSessionKey != null) {
+            updateSession(currentSessionKey) { it.copy(threadId = id) }
+        }
     }
 
     fun getEditingMessageId(): String? = _messagesState.value.editingMessageId
+
+    private fun updateGeneratingThreadsState() {
+        _generatingThreadsState.value = threadSessions.values
+            .filter { it.inProgressAssistantMessageId != null && it.threadId != null }
+            .mapNotNull { it.threadId }
+            .toSet()
+    }
 
     // ========== MessageCenter functions ==========
 
@@ -413,19 +511,23 @@ class MainViewModel(
     }
 
     fun sendMessage(context: Context) {
+        val sessionKey = currentSessionKey ?: run {
+            val tempId = "temp:${UUID.randomUUID()}"
+            threadSessions[tempId] = ThreadSession(threadId = null)
+            updateGeneratingThreadsState()
+            setActiveSession(tempId)
+            tempId
+        }
+        val session = threadSessions[sessionKey] ?: return
         var messageId = UUID.randomUUID().toString()
         val inProgressId = "$messageId.reply"
-        _messagesState.update { it.copy(inProgressAssistantMessageId = inProgressId) }
 
-        // Use MutableList for O(1) index-based updates during streaming
-        val localMessages = _messagesState.value.messages.toMutableList()
-
+        val localMessages = session.messages
         val assistantMessages = localMessages.filter { it.role == AssistantThreadMessageRole.USER }
         val latestAssistantMessageId = assistantMessages.lastOrNull()?.id
         val lastMessage = localMessages.lastOrNull()
         val branchIdContext = lastMessage?.branchIds ?: emptyList()
 
-        // Add user message and assistant message
         localMessages += AssistantThreadMessage(
             id = messageId,
             content = _messageCenterState.value.text,
@@ -442,15 +544,16 @@ class MainViewModel(
             markdownContent = "",
             metadata = emptyMap(),
         )
-        _messagesState.update { it.copy(messages = localMessages.toList()) }
+        updateSession(sessionKey) { it.copy(inProgressAssistantMessageId = inProgressId) }
+        updateMessagesStateFromSession(sessionKey)
 
-        viewModelScope.launch(Dispatchers.IO) {
+        val streamingJob = viewModelScope.launch(Dispatchers.IO) {
             var lastStateUpdateTime = 0L
-
+            var activeSessionKey = sessionKey
             val branchId = localMessages.lastOrNull()?.branchIds?.lastOrNull()
 
             val focus = KagiPromptRequestFocus(
-                _threadsState.value.currentThreadId,
+                session.threadId,
                 latestAssistantMessageId,
                 _messageCenterState.value.text.trim(),
                 branchId,
@@ -478,7 +581,7 @@ class MainViewModel(
                 if (getEditingMessageId().isNullOrBlank()) null else listOf(
                     KagiPromptRequestThreads(
                         listOf(),
-                        saved = !_messagesState.value.isTemporaryChat,
+                        saved = !session.isTemporaryChat,
                         shared = false
                     )
                 )
@@ -489,18 +592,14 @@ class MainViewModel(
 
             setEditingMessageId(null)
 
-            val jsonString =
-                Json.encodeToString(KagiPromptRequest.serializer(), requestBody)
+            val jsonString = Json.encodeToString(KagiPromptRequest.serializer(), requestBody)
 
-            // Track current in-progress ID for efficient lookup
             var currentInProgressId = inProgressId
 
-            // Helper: update message by ID (O(N) find + O(1) update)
             fun updateMessageById(
                 targetId: String,
                 update: (AssistantThreadMessage) -> AssistantThreadMessage
             ) {
-                // check the last element first since it's the most likely target
                 val lastIndex = localMessages.lastIndex
                 if (lastIndex != -1 && localMessages[lastIndex].id == targetId) {
                     localMessages[lastIndex] = update(localMessages[lastIndex])
@@ -512,13 +611,12 @@ class MainViewModel(
                 }
             }
 
-            // Helper: throttled state update
             suspend fun maybeUpdateState(force: Boolean = false) {
                 val currentTime = System.currentTimeMillis()
                 if (force || currentTime - lastStateUpdateTime >= STATE_UPDATE_THROTTLE_MS) {
                     lastStateUpdateTime = currentTime
                     withContext(Dispatchers.Main) {
-                        _messagesState.update { it.copy(messages = localMessages.toList()) }
+                        updateMessagesStateFromSession(activeSessionKey)
                         onTokenReceived()
                     }
                 }
@@ -529,11 +627,15 @@ class MainViewModel(
                     "thread.json" -> {
                         val json = Json.parseToJsonElement(chunk.data)
                         val id = json.jsonObject["id"]?.jsonPrimitive?.contentOrNull
-                        if (id != null) setCurrentThreadId(id)
+                        if (id != null) {
+                            if (activeSessionKey.startsWith("temp:")) {
+                                activeSessionKey = migrateSession(activeSessionKey, id)
+                            }
+                            setCurrentThreadId(id)
+                        }
                         val title = json.jsonObject["title"]?.jsonPrimitive?.contentOrNull
                         if (title != null && id != null) {
-                            setCurrentThreadTitle(title)
-                            // update thread list state too so that this thread's name gets updated
+                            updateSession(activeSessionKey) { it.copy(currentThreadTitle = title) }
                             _threadsState.update { state ->
                                 state.copy(
                                     threads = state.threads.mapValues { (_, threads) ->
@@ -573,13 +675,11 @@ class MainViewModel(
                     "new_message.json" -> {
                         val dto = Json.parseToJsonElement(chunk.data).toObject<MessageDto>()
 
-                        // Update user message ID
                         updateMessageById(messageId) { it.copy(id = dto.id) }
 
                         val newInProgressId = "${dto.id}.reply"
                         currentInProgressId = newInProgressId
 
-                        // Update old in-progress message ID
                         updateMessageById(inProgressId) { it.copy(id = newInProgressId) }
 
                         messageId = dto.id
@@ -587,7 +687,6 @@ class MainViewModel(
                         val preparedCitations = parseReferencesHtml(dto.references_html)
 
                         if (dto.state == "done") {
-                            // Update assistant message with final content
                             updateMessageById(newInProgressId) { msg ->
                                 msg.copy(
                                     content = dto.reply,
@@ -598,9 +697,7 @@ class MainViewModel(
                             }
                         }
 
-                        withContext(Dispatchers.Main) {
-                            _messagesState.update { it.copy(inProgressAssistantMessageId = newInProgressId) }
-                        }
+                        updateSession(activeSessionKey) { it.copy(inProgressAssistantMessageId = newInProgressId) }
                         maybeUpdateState(force = true)
                     }
 
@@ -610,7 +707,6 @@ class MainViewModel(
                         val newText = obj["text"]?.jsonPrimitive?.contentOrNull ?: ""
                         val incomingId = obj["id"]?.jsonPrimitive?.contentOrNull ?: ""
 
-                        // O(1) update by finding index once
                         val targetId = "$incomingId.reply"
                         updateMessageById(targetId) { it.copy(content = newText) }
 
@@ -619,13 +715,11 @@ class MainViewModel(
                 }
 
                 if (chunk.done) {
-                    // Mark in-progress message as finished
                     updateMessageById(currentInProgressId) { it.copy(finishedGenerating = true) }
                 }
             }
 
             if (_messageCenterState.value.attachmentUris.isNotEmpty()) {
-                // Move file operations to IO thread
                 val files = withContext(Dispatchers.IO) {
                     _messageCenterState.value.attachmentUris.mapNotNull { uriStr ->
                         try {
@@ -652,7 +746,6 @@ class MainViewModel(
                     }
                 }
 
-                // Update messages with document info
                 files.forEach { promptFile ->
                     updateMessageById(messageId) { msg ->
                         val fileName = promptFile.file.name
@@ -693,16 +786,13 @@ class MainViewModel(
                 }
             }
 
-            // Final sync to StateFlow
             withContext(Dispatchers.Main) {
-                _messagesState.update {
-                    it.copy(
-                        messages = localMessages.toList(),
-                        inProgressAssistantMessageId = null
-                    )
-                }
+                updateSession(activeSessionKey) { it.copy(inProgressAssistantMessageId = null) }
+                updateMessagesStateFromSession(activeSessionKey)
             }
         }
+
+        updateSession(sessionKey) { it.copy(streamingJob = streamingJob) }
     }
 }
 

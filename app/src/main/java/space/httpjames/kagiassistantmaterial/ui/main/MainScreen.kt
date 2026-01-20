@@ -72,6 +72,7 @@ fun MainScreen(
     )
     val threadsState by viewModel.threadsState.collectAsState()
     val messagesState by viewModel.messagesState.collectAsState()
+    val generatingThreads by viewModel.generatingThreadsState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -141,29 +142,31 @@ fun MainScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ThreadsDrawerSheet(
-                threads = threadsState.threads,
-                onThreadSelected = {
-                    scope.launch {
-                        viewModel.onThreadSelected(it)
-                        drawerState.close()
-                    }
-                },
-                callState = threadsState.callState,
-                onSettingsClick = {
-                    scope.launch {
-                        navController.navigate(Screens.SETTINGS.route)
-                        drawerState.close()
-                    }
-                },
-                onRetryClick = {
-                    scope.launch {
-                        viewModel.fetchThreads()
-                    }
-                },
-                predictiveBackProgress = predictiveBackProgress,
-                currentThreadId = threadsState.currentThreadId,
-            )
+                ThreadsDrawerSheet(
+                    threads = threadsState.threads,
+                    onThreadSelected = {
+                        scope.launch {
+                            viewModel.onThreadSelected(it)
+                            drawerState.close()
+                        }
+                    },
+                    callState = threadsState.callState,
+                    onSettingsClick = {
+                        scope.launch {
+                            navController.navigate(Screens.SETTINGS.route)
+                            drawerState.close()
+                        }
+                    },
+                    onRetryClick = {
+                        scope.launch {
+                            viewModel.fetchThreads()
+                        }
+                    },
+                    predictiveBackProgress = predictiveBackProgress,
+                    currentThreadId = threadsState.currentThreadId,
+                    generatingThreadIds = generatingThreads,
+                )
+
         }) {
         Scaffold(
             modifier = modifier.fillMaxSize(),

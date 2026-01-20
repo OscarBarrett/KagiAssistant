@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -54,6 +55,7 @@ fun ThreadsDrawerSheet(
     onRetryClick: () -> Unit,
     predictiveBackProgress: Float = 0f,
     currentThreadId: String?,
+    generatingThreadIds: Set<String>,
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
@@ -101,7 +103,8 @@ fun ThreadsDrawerSheet(
                     onThreadSelected(threadId)
                     active = false
                 },
-                currentThreadId = currentThreadId
+                currentThreadId = currentThreadId,
+                generatingThreadIds = generatingThreadIds
             )
         }
 
@@ -127,7 +130,8 @@ fun ThreadsDrawerSheet(
                     else -> ThreadList(
                         threads = filteredThreads,
                         onItemClick = onThreadSelected,
-                        currentThreadId = currentThreadId
+                        currentThreadId = currentThreadId,
+                        generatingThreadIds = generatingThreadIds
                     )
                 }
 
@@ -156,6 +160,7 @@ private fun ThreadList(
     threads: Map<String, List<AssistantThread>>,
     onItemClick: (String) -> Unit,
     currentThreadId: String?,
+    generatingThreadIds: Set<String>,
 ) {
     LazyColumn {
         threads.entries.forEachIndexed { index, (category, threadList) ->
@@ -188,20 +193,35 @@ private fun ThreadList(
             items(threadList) { thread ->
                 NavigationDrawerItem(
                     label = {
-                        Column(modifier = Modifier.padding(vertical = 12.dp)) {
-                            Text(
-                                text = thread.title,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = thread.excerpt,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                minLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = thread.title,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = thread.excerpt,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    minLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            if (thread.id in generatingThreadIds) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .size(20.dp),
+                                )
+                            }
+
                         }
                     },
                     selected = thread.id == currentThreadId,
