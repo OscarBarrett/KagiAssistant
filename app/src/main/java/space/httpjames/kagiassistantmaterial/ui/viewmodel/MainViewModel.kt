@@ -102,8 +102,14 @@ const val STATE_UPDATE_THROTTLE_MS = 32
 class MainViewModel(
     private val repository: AssistantRepository,
     private val prefs: SharedPreferences,
-    private val onTokenReceived: () -> Unit = {}
+    onTokenReceived: () -> Unit = {}
 ) : ViewModel() {
+
+    private var _onTokenReceived: () -> Unit = onTokenReceived
+
+    fun setOnTokenReceived(callback: () -> Unit) {
+        _onTokenReceived = callback
+    }
 
     // Threads state
     private val _threadsState = MutableStateFlow(ThreadsUiState())
@@ -383,6 +389,11 @@ class MainViewModel(
         }
     }
 
+    private fun shouldPlayTokenHaptic(sessionKey: String): Boolean {
+        val session = threadSessions[sessionKey] ?: return false
+        return sessionKey == activeSessionKey && session.inProgressAssistantMessageId != null
+    }
+
     fun getEditingMessageId(): String? = _messagesState.value.editingMessageId
 
     private fun updateGeneratingThreadsState() {
@@ -617,7 +628,9 @@ class MainViewModel(
                     lastStateUpdateTime = currentTime
                     withContext(Dispatchers.Main) {
                         updateMessagesStateFromSession(activeSessionKey)
-                        onTokenReceived()
+                        if (shouldPlayTokenHaptic(activeSessionKey)) {
+                            _onTokenReceived()
+                        }
                     }
                 }
             }
