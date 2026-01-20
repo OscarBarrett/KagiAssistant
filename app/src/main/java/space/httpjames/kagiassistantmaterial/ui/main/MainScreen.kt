@@ -224,7 +224,8 @@ fun MainScreen(
                             viewModel.onThreadSelected(threadsState.currentThreadId!!)
                         }
                     },
-                    isTemporaryChat = messagesState.isTemporaryChat
+                    isTemporaryChat = messagesState.isTemporaryChat,
+                    isGenerating = messagesState.inProgressAssistantMessageId != null
                 )
                 MessageCenter(
                     threadId = threadsState.currentThreadId,

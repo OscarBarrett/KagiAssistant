@@ -51,6 +51,7 @@ fun ChatArea(
     onEdit: (String) -> Unit,
     onRetryClick: () -> Unit,
     isTemporaryChat: Boolean,
+    isGenerating: Boolean = false,
 ) {
     val scrollState = rememberScrollState()
     var pendingMeasurements by remember { mutableIntStateOf(0) }
@@ -59,6 +60,37 @@ fun ChatArea(
     val coroutineScope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     var showButton by remember { mutableStateOf(false) }
+
+    // Sticky scroll: track if user is at the bottom
+    // Consider "at bottom" if within a small threshold (e.g., 50px) to account for minor variations
+    val isAtBottom = scrollState.maxValue == 0 || 
+            (scrollState.maxValue - scrollState.value) <= 50
+
+    // Track if sticky scroll should be active
+    // Becomes true when at bottom, becomes false when user scrolls up during generation
+    var stickyScrollEnabled by remember { mutableStateOf(true) }
+
+    // Detect manual scroll up during generation to disable sticky scroll
+    LaunchedEffect(scrollState.isScrollInProgress, isAtBottom) {
+        if (scrollState.isScrollInProgress && !isAtBottom && isGenerating) {
+            // User scrolled away from bottom during generation - disable sticky
+            stickyScrollEnabled = false
+        }
+    }
+
+    // Re-enable sticky scroll when user scrolls back to bottom or generation stops
+    LaunchedEffect(isAtBottom, isGenerating) {
+        if (isAtBottom) {
+            stickyScrollEnabled = true
+        }
+    }
+
+    // Auto-scroll to bottom during generation if sticky is enabled
+    LaunchedEffect(scrollState.maxValue, isGenerating, stickyScrollEnabled) {
+        if (isGenerating && stickyScrollEnabled && scrollState.maxValue > 0) {
+            scrollState.scrollTo(scrollState.maxValue)
+        }
+    }
 
     LaunchedEffect(scrollState.isScrollInProgress, scrollState.value, scrollState.maxValue) {
         showButton = !scrollState.isScrollInProgress &&
